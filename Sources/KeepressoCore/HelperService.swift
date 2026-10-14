@@ -42,7 +42,9 @@ public enum HelperService {
     /// 8: added `flushDNS` (the Public Wi-Fi assistant).
     /// 9: added `setKeyboardLock` (Keyboard Cleaner: root hidutil remap).
     /// 10: connection-scoped battery Low Power Mode.
-    public static let protocolVersion = 10
+    /// 11: dropped fan holds are reported per connection, so independent
+    ///     floor and heat controllers cannot clear each other's status.
+    public static let protocolVersion = 11
     public static let lowPowerMinProtocol = 10
     /// First protocol that shipped `flushDNS`. Older daemons lack the verb.
     public static let flushDNSMinProtocol = 8

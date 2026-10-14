@@ -913,3 +913,21 @@ private final class FakeBatteryLowPower: BatteryLowPowerControlling, @unchecked 
     engine.clientDisconnected(10)
     #expect(fans.restoreCalls == 1)
 }
+
+@Test func fanDropIsRememberedForEachClientUntilThatClientRetries() {
+    let fans = FakeFanControl()
+    let engine = HelperEngine(runner: FakeRunner(), state: FakeRestoreState(), fans: fans)
+    #expect(engine.setFanHold(client: 1, holding: true, percent: 50))
+    #expect(engine.setFanHold(client: 2, holding: true, percent: 80))
+    fans.results = Array(repeating: .failed, count: HelperEngine.maxFanFailures)
+    for _ in 0..<HelperEngine.maxFanFailures { engine.fanTick() }
+    #expect(engine.fanHoldWasDropped(client: 1))
+    #expect(engine.fanHoldWasDropped(client: 2))
+    #expect(!engine.fanHoldWasDropped(client: 3))
+    // The floor can retry without hiding the heat controller's lost hold.
+    #expect(engine.setFanHold(client: 1, holding: true, percent: 60))
+    #expect(!engine.fanHoldWasDropped(client: 1))
+    #expect(engine.fanHoldWasDropped(client: 2))
+    engine.clientDisconnected(2)
+    #expect(!engine.fanHoldWasDropped(client: 2))
+}

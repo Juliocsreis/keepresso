@@ -240,7 +240,7 @@ final class AppModel {
         }
         // The thermal pause always announces itself in a notification (an
         // otherwise silent stop just looks like the app quit), helper or not.
-        if loaded.thermalSafety != nil {
+        if loaded.thermalSafety != nil || (loaded.hotspotFallback.enabled && loaded.hotspotFallback.notifyOnConnect) {
             notifier.requestAuthorization()
         }
         // Launch idle: a manual session waits for the user's toggle, a gated
@@ -288,7 +288,7 @@ final class AppModel {
         try await Task.detached { [hotspotCredentials] in
             try hotspotCredentials.save(password: password, for: ssid)
         }.value
-        hotspot.retryNow()
+        if settings.hotspotFallback.ssid == ssid { hotspot.retryNow() }
     }
     func hasHotspotPassword(ssid: String) async -> Bool {
         await Task.detached { [hotspotCredentials] in
@@ -308,14 +308,16 @@ final class AppModel {
         let useLowPower = settings.closedLidLowPower
         guard useHotspot || useLowPower || closedLidLowPowerController.holding || closedLidLowPowerController.busy else { return }
         let power = connectivityPower.current
-        let lidClosed = connectivityLid.isClosed() == true
-        let closed = closedDisplay.isEnabled == true
+        let lidClosed = connectivityLid.isClosed()
+        let closed = closedDisplay.isEnabled
         if useHotspot {
-            hotspot.tick(conditions: HotspotConditions(sessionActive: session.isActive, lidClosed: lidClosed,
-                closedDisplayActive: closed, onBattery: power.provider == .battery, batteryPercent: power.percentage))
+            hotspot.tick(conditions: HotspotConditions(sessionActive: session.isActive, lidClosed: lidClosed == true,
+                closedDisplayActive: closed == true, onBattery: power.provider == .battery,
+                batteryPercent: power.percentage, powerKnown: !machineHasBattery || power.provider != .unknown))
         }
         closedLidLowPowerController.tick(enabled: useLowPower, lidClosed: lidClosed, closedDisplayActive: closed,
-            onBattery: power.provider == .battery, helperAvailable: helper.isInstalled)
+            onBattery: power.provider == .unknown ? nil : power.provider == .battery,
+            helperAvailable: helper.isInstalled)
     }
 
     // MARK: - Awake explainer
@@ -1869,7 +1871,8 @@ final class AppModel {
             || newSettings.notifyOnEnd
             || newSettings.endingSoonNoticeSeconds != nil
             || newSettings.closedDisplayOnlyWhileBrewing
-            || newSettings.awdlAutoWithGaming {
+            || newSettings.awdlAutoWithGaming
+            || (newSettings.hotspotFallback.enabled && newSettings.hotspotFallback.notifyOnConnect) {
             notifier.requestAuthorization()
         }
         registerHotKey()

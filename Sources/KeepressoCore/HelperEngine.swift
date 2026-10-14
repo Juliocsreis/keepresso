@@ -212,6 +212,7 @@ public final class HelperEngine: @unchecked Sendable {
     /// Consecutive failed fan writes; past the cap the engine surrenders the
     /// hold instead of fighting the firmware forever.
     private var fanFailureStreak = 0
+    private var droppedFanClients: Set<Int> = []
     /// How many consecutive failed writes drop the fan hold.
     static let maxFanFailures = 5
     /// Set once ``fanTick()`` gave up on a hold, so the state is inspectable
@@ -220,11 +221,13 @@ public final class HelperEngine: @unchecked Sendable {
     /// and XPC reads arrive on arbitrary queues.
     public private(set) var fanHoldDropped = false
 
-    /// Locked read of ``fanHoldDropped`` for XPC callers.
-    public func fanHoldWasDropped() -> Bool {
+    /// The calling connection's lost fan claim stays visible until that
+    /// connection retries or disconnects. Another holder cannot clear it.
+    /// A nil client preserves the aggregate inspection used by diagnostics.
+    public func fanHoldWasDropped(client: Int? = nil) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return fanHoldDropped
+        return client.map { droppedFanClients.contains($0) } ?? fanHoldDropped
     }
 
     /// Reads the current global `disablesleep` value. A separate seam because
@@ -530,6 +533,7 @@ public final class HelperEngine: @unchecked Sendable {
         defer { lock.unlock() }
         return applyFanUnion {
             if holding {
+                droppedFanClients.remove(client)
                 fanHolders[client] = max(30, min(percent, 100))
             } else {
                 fanHolders.removeValue(forKey: client)
@@ -568,6 +572,7 @@ public final class HelperEngine: @unchecked Sendable {
         _ = applySleepUnion(client: client, holding: false)
         _ = applyAWDLUnion(client: client, holding: false)
         _ = applyFanUnion { fanHolders.removeValue(forKey: client) }
+        droppedFanClients.remove(client)
         _ = applyPriorityUnion { priorityHolders.removeValue(forKey: client) }
         _ = applyKeyboardUnion(client: client, holding: false)
         _ = applyLowPowerUnion(client: client, holding: false)
@@ -611,6 +616,7 @@ public final class HelperEngine: @unchecked Sendable {
         }
         fanFailureStreak += 1
         guard fanFailureStreak >= Self.maxFanFailures else { return }
+        droppedFanClients.formUnion(fanHolders.keys)
         fanHolders.removeAll()
         fanFailureStreak = 0
         fanHoldDropped = true

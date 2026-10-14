@@ -109,3 +109,44 @@ private struct TestHotspotCredentials: HotspotCredentialStoring {
     #expect(controller.status == .needsPassword)
     #expect(network.connectionCount == 0)
 }
+
+@Test func hotspotPartialConfigurationKeepsSelectedNetworkAndFillsDefaults() throws {
+    let config = try JSONDecoder().decode(HotspotFallbackConfig.self, from: Data(#"{"enabled":true,"ssid":"My iPhone"}"#.utf8))
+    #expect(config.enabled); #expect(config.ssid == "My iPhone")
+    #expect(config.scope == .activeSession); #expect(config.delaySeconds == 10)
+    #expect(config.minimumBatteryPercent == 20)
+}
+@Test func hotspotBatteryMinimumDoesNotTreatUnknownPowerAsAC() {
+    var config = configured(); var conditions = active
+    conditions.powerKnown = false; conditions.onBattery = false
+    #expect(!conditions.allows(config))
+    config.minimumBatteryPercent = 0
+    #expect(conditions.allows(config))
+}
+@Test @MainActor func hotspotCredentialFailureStaysVisibleDuringRetryDelay() async throws {
+    let network = PausedHotspotNetwork()
+    let controller = HotspotFallbackController(network: network, credentials: TestHotspotCredentials(stored: nil))
+    controller.config = configured(); controller.retryNow()
+    let now = Date(timeIntervalSince1970: 100)
+    controller.tick(conditions: active, now: now)
+    for _ in 0..<100 {
+        if controller.status == .needsPassword { break }
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(controller.status == .needsPassword)
+    controller.tick(conditions: active, now: now.addingTimeInterval(5))
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(controller.status == .needsPassword)
+}
+private struct UnavailableScanNetwork: HotspotNetworking {
+    func snapshot() -> HotspotNetworkState { offline }
+    func nearbyNetworks() throws -> [String] { throw HotspotWiFiError.unavailable }
+    func connect(ssid: String, password: String) throws {}
+}
+@Test @MainActor func hotspotScanErrorsDoNotOverwriteAutomaticConnectionStatus() async {
+    let controller = HotspotFallbackController(network: UnavailableScanNetwork(), credentials: TestHotspotCredentials(stored: nil))
+    controller.config = configured()
+    await controller.scan()
+    #expect(controller.status == .waiting)
+    #expect(controller.scanError != nil)
+}

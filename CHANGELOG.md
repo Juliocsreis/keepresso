@@ -25,6 +25,10 @@ Versions follow [Semantic Versioning](https://semver.org).
 
 ### Fixed
 
+- Keep dropped fan holds visible to each controller independently, preserve
+  closed-lid Low Power Mode across unknown readings, and honor the hotspot
+  battery minimum when power information is unavailable. Retain hotspot
+  failures while waiting to retry and preserve defaults in partial configs.
 - Use a supported three-second timeout for Codex SessionEnd and automatically
   repair excessive or malformed Keepresso hook timeouts
   ([#28](https://github.com/gyorgysh/keepresso/issues/28)). Thanks to

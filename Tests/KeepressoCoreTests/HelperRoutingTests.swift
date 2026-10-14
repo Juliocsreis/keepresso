@@ -342,3 +342,19 @@ private final class LockedFlag: @unchecked Sendable {
     #expect(controller.requestedPercent == nil)
     #expect(helper.calls == ["setFanHold(true, 50)", "setFanHold(false, 0)"])
 }
+
+@Test @MainActor func lowPowerUnknownReadingsDoNotUndoAConfirmedClosedLidHold() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: nil, closedDisplayActive: nil, onBattery: nil, helperAvailable: true)
+    #expect(helper.calls.isEmpty)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.holding)
+    controller.tick(enabled: true, lidClosed: nil, closedDisplayActive: nil, onBattery: nil, helperAvailable: true)
+    #expect(helper.calls == ["setLowPowerHold(true)"])
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: nil, onBattery: nil, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.holding)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}

@@ -8,6 +8,7 @@ struct HotspotPreferencesSection: View {
     @State private var password = ""
     @State private var saved = false
     @State private var saving = false
+    @State private var credentialRevision = 0
     @State private var error: String?
 
     private func setting<Value>(_ key: WritableKeyPath<HotspotFallbackConfig, Value>) -> Binding<Value> {
@@ -37,13 +38,13 @@ struct HotspotPreferencesSection: View {
                     Button("Save password") {
                         let ssid = model.hotspotConfig.ssid
                         let value = password
-                        saving = true
+                        saving = true; credentialRevision &+= 1
                         Task {
                             do {
                                 try await model.saveHotspotPassword(value, ssid: ssid)
                                 if model.hotspotConfig.ssid == ssid { saved = true; password = ""; error = nil }
                             }
-                            catch { self.error = error.localizedDescription }
+                            catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
                             saving = false
                         }
                     }
@@ -56,12 +57,13 @@ struct HotspotPreferencesSection: View {
                         Spacer()
                         Button("Forget password") {
                             let ssid = model.hotspotConfig.ssid
+                            credentialRevision &+= 1
                             Task {
                                 do {
                                     try await model.forgetHotspotPassword(ssid: ssid)
                                     if model.hotspotConfig.ssid == ssid { saved = false }
                                 }
-                                catch { self.error = error.localizedDescription }
+                                catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
                             }
                         }
                     }
@@ -101,6 +103,7 @@ struct HotspotPreferencesSection: View {
                     .font(.caption)
                 }
                 if let error { Text(error).font(.caption).foregroundStyle(.orange) }
+                if let scanError = model.hotspot.scanError { Text(scanError).font(.caption).foregroundStyle(.orange) }
                 HStack {
                     Button("Scan networks") { Task { await model.hotspot.scan() } }
                         .disabled(model.hotspot.scanning || !location.isAuthorized)
@@ -116,10 +119,12 @@ struct HotspotPreferencesSection: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .task(id: model.hotspotConfig.ssid) {
-            password = ""; error = nil
+            password = ""; error = nil; saved = false
+            credentialRevision &+= 1
+            let revision = credentialRevision
             let ssid = model.hotspotConfig.ssid
             let present = await model.hasHotspotPassword(ssid: ssid)
-            if !Task.isCancelled { saved = present }
+            if !Task.isCancelled && revision == credentialRevision { saved = present }
         }
     }
     private var status: String {

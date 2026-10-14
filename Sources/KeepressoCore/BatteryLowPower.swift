@@ -70,14 +70,18 @@ public final class ClosedLidLowPowerController {
     public private(set) var failed = false
     @ObservationIgnored private let helper: PrivilegedHelperCalling
     @ObservationIgnored private var lastAttempt: Date?
+    @ObservationIgnored private var arming = ThermalArming()
+    @ObservationIgnored private var batteryLatched = false
     @ObservationIgnored private var activeTask: Task<Void, Never>?
     @ObservationIgnored private var stopping = false
     @ObservationIgnored private var pausedUntilDisarmed = false
     public init(helper: PrivilegedHelperCalling) { self.helper = helper }
-    public func tick(enabled: Bool, lidClosed: Bool, closedDisplayActive: Bool,
-                     onBattery: Bool, helperAvailable: Bool, now: Date = Date()) {
+    public func tick(enabled: Bool, lidClosed: Bool?, closedDisplayActive: Bool?,
+                     onBattery: Bool?, helperAvailable: Bool, now: Date = Date()) {
         guard !stopping else { return }
-        let base = enabled && lidClosed && closedDisplayActive && onBattery && helperAvailable
+        let armed = arming.update(lidClosed: lidClosed, sleepOverrideActive: closedDisplayActive)
+        if let onBattery { batteryLatched = onBattery }
+        let base = enabled && armed && batteryLatched && helperAvailable
         if !base { pausedUntilDisarmed = false }
         let desired = base && !pausedUntilDisarmed
         guard !busy else { return }

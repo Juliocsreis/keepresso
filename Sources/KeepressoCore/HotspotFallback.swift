@@ -14,6 +14,19 @@ public struct HotspotFallbackConfig: Codable, Equatable, Sendable {
     public var notifyOnConnect = true
     public init() {}
 
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = Self()
+        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? defaults.enabled
+        ssid = try values.decodeIfPresent(String.self, forKey: .ssid) ?? defaults.ssid
+        scope = try values.decodeIfPresent(Scope.self, forKey: .scope) ?? defaults.scope
+        delaySeconds = try values.decodeIfPresent(TimeInterval.self, forKey: .delaySeconds) ?? defaults.delaySeconds
+        retrySeconds = try values.decodeIfPresent(TimeInterval.self, forKey: .retrySeconds) ?? defaults.retrySeconds
+        minimumBatteryPercent = try values.decodeIfPresent(Int.self, forKey: .minimumBatteryPercent) ?? defaults.minimumBatteryPercent
+        notifyOnConnect = try values.decodeIfPresent(Bool.self, forKey: .notifyOnConnect) ?? defaults.notifyOnConnect
+        self = normalized()
+    }
+
     public func normalized() -> Self {
         var copy = self
         copy.delaySeconds = delaySeconds.isFinite ? min(120, max(0, delaySeconds)) : 10
@@ -28,17 +41,20 @@ public struct HotspotConditions: Equatable, Sendable {
     public var lidClosed: Bool
     public var closedDisplayActive: Bool
     public var onBattery: Bool
+    public var powerKnown: Bool
     public var batteryPercent: Int?
     public init(sessionActive: Bool, lidClosed: Bool, closedDisplayActive: Bool,
-                onBattery: Bool, batteryPercent: Int?) {
+                onBattery: Bool, batteryPercent: Int?, powerKnown: Bool = true) {
         self.sessionActive = sessionActive
         self.lidClosed = lidClosed
         self.closedDisplayActive = closedDisplayActive
         self.onBattery = onBattery
+        self.powerKnown = powerKnown
         self.batteryPercent = batteryPercent
     }
     public func allows(_ config: HotspotFallbackConfig) -> Bool {
         guard config.enabled, !config.ssid.isEmpty, config.ssid.utf8.count <= 32 else { return false }
+        if config.minimumBatteryPercent > 0, !powerKnown { return false }
         if onBattery, config.minimumBatteryPercent > 0 {
             guard let batteryPercent, batteryPercent >= config.minimumBatteryPercent else { return false }
         }
@@ -102,7 +118,7 @@ public final class HotspotFallbackController {
     public var config = HotspotFallbackConfig() {
         didSet {
             if config != oldValue {
-                policy.reset(); task?.cancel(); lastPoll = nil
+                policy.reset(); task?.cancel(); lastPoll = nil; retryImmediately = false
                 status = config.enabled ? .waiting : .off
             }
         }
@@ -110,6 +126,7 @@ public final class HotspotFallbackController {
     public private(set) var status: Status = .off
     public private(set) var nearby: [String] = []
     public private(set) var scanning = false
+    public private(set) var scanError: String?
     public var onConnected: ((String) -> Void)?
     @ObservationIgnored private let network: HotspotNetworking
     @ObservationIgnored private let credentials: HotspotCredentialStoring
@@ -124,7 +141,7 @@ public final class HotspotFallbackController {
     }
     public func tick(conditions: HotspotConditions, now: Date = Date()) {
         guard conditions.allows(config) else {
-            task?.cancel(); policy.reset(); lastPoll = nil
+            task?.cancel(); policy.reset(); lastPoll = nil; retryImmediately = false
             status = config.enabled ? .waiting : .off
             return
         }
@@ -140,6 +157,14 @@ public final class HotspotFallbackController {
             guard !Task.isCancelled else { return }
             if state.ssid == config.ssid && state.hasRoute == true { self.status = .connected; return }
             guard self.policy.shouldConnect(config: config, conditions: conditions, network: state, now: now) else {
+                // Keep a failure visible during this outage's retry interval.
+                // A recovered route or powered-off radio gets a fresh status.
+                if state.wifiPowered && state.hasRoute == false && state.ssid != config.ssid {
+                    switch self.status {
+                    case .failed, .needsPassword: return
+                    default: break
+                    }
+                }
                 self.status = state.wifiPowered ? .monitoring : .wifiOff
                 return
             }
@@ -168,12 +193,12 @@ public final class HotspotFallbackController {
     }
     public func scan() async {
         guard !scanning else { return }
-        scanning = true
+        scanning = true; scanError = nil
         defer { scanning = false }
         let result = await Task.detached { [network] in Result { try network.nearbyNetworks() } }.value
         switch result {
         case .success(let names): nearby = names
-        case .failure(let error): status = .failed(error.localizedDescription)
+        case .failure(let error): scanError = error.localizedDescription
         }
     }
     public func retryNow() { policy.reset(); lastPoll = nil; retryImmediately = true }

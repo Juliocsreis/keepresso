@@ -54,7 +54,7 @@ final class HelperConnection: NSObject, HelperXPCProtocol {
     }
 
     func fanHoldDropped(reply: @escaping @Sendable (Bool) -> Void) {
-        reply(engine.fanHoldWasDropped())
+        reply(engine.fanHoldWasDropped(client: clientID))
     }
 
     func setPriorityHold(_ holding: Bool, pid: Int, reply: @escaping @Sendable (Bool) -> Void) {
