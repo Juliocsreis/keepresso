@@ -29,11 +29,11 @@ condition-based **triggers** so your Mac only stays awake when it actually shoul
 It lives quietly in the menu bar, no Dock icon, no clutter.
 
 <p align="center">
-  <img src="docs/assets/menu_idle.webp" width="250" alt="Keepresso menu brewing indefinitely, with the keep-awake toggle, duration picker, and Stop-in buttons">
+  <img src="docs/assets/demo_manual.svg" width="270" alt="Animated Keepresso menu: switching keep-awake on, picking a one hour session that counts down, then switching it off">
   &nbsp;
-  <img src="docs/assets/menu_countdown.webp" width="250" alt="Keepresso brewing a timed session, with a live countdown and one-tap Stop-in buttons">
+  <img src="docs/assets/demo_triggers.svg" width="270" alt="Animated Keepresso menu: AI agents and a network condition hold the Mac awake, then it goes idle when the work stops">
   &nbsp;
-  <img src="docs/assets/menu_trigger.webp" width="250" alt="Keepresso brewing because a trigger condition is met, with the live condition list">
+  <img src="docs/assets/demo_lid.svg" width="270" alt="Animated Keepresso menu: turning on keep awake with lid closed, the display goes dark while an AI agent keeps working">
 </p>
 
 ## Features
