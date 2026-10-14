@@ -91,11 +91,17 @@ final class HelperRoutingTestClient: PrivilegedHelperCalling, @unchecked Sendabl
 
 final class BlockingLowPowerTestCall: @unchecked Sendable {
     private let lock = NSLock()
-    private var began = false
+    private var onStarted: (@Sendable (@escaping @Sendable () -> Void) -> Void)?
     private let permit = DispatchSemaphore(value: 0)
-    var started: Bool { lock.lock(); defer { lock.unlock() }; return began }
+    init(onStarted: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void) {
+        self.onStarted = onStarted
+    }
     func waitForRelease() {
-        lock.lock(); began = true; lock.unlock()
+        lock.lock()
+        let callback = onStarted
+        onStarted = nil
+        lock.unlock()
+        callback?({ self.release() })
         // Ordering is controlled by the test, not runner speed. The test's
         // defer always releases this barrier even if it throws or is cancelled.
         permit.wait()

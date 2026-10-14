@@ -53,6 +53,7 @@ jobs:
       - name: Core tests
         run: swift test --skip HelperConnectionTests
       - name: XPC rendezvous tests, separately scheduled
+        timeout-minutes: 5
         run: swift test --filter HelperConnectionTests
       - name: Install tools
         run: brew install xcodegen

@@ -279,14 +279,21 @@ private func blockingValue<Value: Sendable>(_ work: @escaping @Sendable () -> Va
 // occupy a cooperative worker while the full core suite needs the pool.
 @Test @MainActor func lowPowerDisarmDuringBatteryWriteNeverEngagesAdapterAndRestoresImmediately() async throws {
     let helper = HelperRoutingTestClient()
-    let barrier = BlockingLowPowerTestCall(); helper.lowPowerBarrier = barrier
-    defer { barrier.release() }
     let controller = ClosedLidLowPowerController(helper: helper)
+    // A suspended async test may need the worker occupied by the paused
+    // write. Dispatch the simulated settings change directly to the main
+    // queue, then release the call, preserving the intended ordering.
+    let barrier = BlockingLowPowerTestCall { finish in
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                controller.tick(enabled: false, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+                finish()
+            }
+        }
+    }
+    helper.lowPowerBarrier = barrier
+    defer { barrier.release() }
     controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
-    for _ in 0..<100 { if barrier.started { break }; try await Task.sleep(for: .milliseconds(10)) }
-    #expect(barrier.started)
-    controller.tick(enabled: false, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
-    barrier.release()
     for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
     #expect(!controller.holding && !controller.hasPendingRequests)
     #expect(controller.status == .off)
