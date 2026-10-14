@@ -206,7 +206,8 @@ public enum CodexHooks {
                     [
                         "type": "command",
                         "command": hookCommand(event: event, cliPath: cliPath),
-                        "timeout": 5,
+                        // Codex clamps SessionEnd to a maximum of three seconds.
+                        "timeout": event == "SessionEnd" ? 3 : 5,
                     ] as [String: Any],
                 ],
             ] as [String: Any])
@@ -256,7 +257,15 @@ public enum CodexHooks {
             }
             if ours.count > 1 {
                 report.duplicated.insert(event)
-            } else if ours[0] != hookCommand(event: event, cliPath: cliPath) {
+            } else if ours[0] != hookCommand(event: event, cliPath: cliPath)
+                || (event == "SessionEnd" && groups.contains { group in
+                    guard let group = group as? [String: Any],
+                          let entries = group["hooks"] as? [Any] else { return false }
+                    return entries.compactMap { $0 as? [String: Any] }.contains { entry in
+                        (entry["command"] as? String)?.contains(hookMarker) == true
+                            && (entry["timeout"] as? NSNumber).map { $0.doubleValue > 3 } == true
+                    }
+                }) {
                 report.stale.insert(event)
             } else {
                 report.healthy.insert(event)

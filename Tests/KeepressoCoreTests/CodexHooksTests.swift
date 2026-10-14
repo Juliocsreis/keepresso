@@ -131,6 +131,59 @@ private let cli = "/Applications/Keepresso.app/Contents/Helpers/keepresso"
         try CodexHooks.installHooks(into: moved, cliPath: cli), cliPath: cli).isHealthy)
 }
 
+@Test func codexInstallUsesSupportedTimeouts() throws {
+    let installed = try CodexHooks.installHooks(into: nil, cliPath: cli)
+    let root = try #require(try JSONSerialization.jsonObject(with: installed) as? [String: Any])
+    let hooks = try #require(root["hooks"] as? [String: Any])
+    for event in CodexHooks.installedEvents {
+        let groups = try #require(hooks[event] as? [[String: Any]])
+        let entries = try #require(groups.first?["hooks"] as? [[String: Any]])
+        #expect(entries.first?["timeout"] as? Int == (event == "SessionEnd" ? 3 : 5))
+    }
+}
+
+@Test func codexRepairMigratesExcessiveSessionEndTimeout() throws {
+    let fresh = try CodexHooks.installHooks(into: nil, cliPath: cli)
+    for timeout in [1.0, 3.0, 3.5, 5.0] {
+        var root = try #require(try JSONSerialization.jsonObject(with: fresh) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        let foreign: [String: Any] = ["type": "command", "command": "user-cleanup.sh", "timeout": 2]
+        // A foreign sibling and an unreadable entry must not hide our old timeout.
+        hooks["SessionEnd"] = [["matcher": "other", "hooks": [
+            NSNull(), foreign,
+            ["type": "command", "command": CodexHooks.hookCommand(event: "SessionEnd", cliPath: cli),
+             "timeout": timeout] as [String: Any],
+        ] as [Any]]]
+        root["hooks"] = hooks
+        let existing = try JSONSerialization.data(withJSONObject: root)
+        let report = CodexHooks.inspect(existing, cliPath: cli)
+        if timeout > 3 {
+            #expect(report.stale == ["SessionEnd"])
+            guard case .needsRepair = CodexHooks.hookInstallState(of: existing, cliPath: cli) else {
+                Issue.record("an excessive SessionEnd timeout must trigger repair")
+                continue
+            }
+        } else {
+            #expect(report.isHealthy)
+        }
+        let repaired = try CodexHooks.installHooks(into: existing, cliPath: cli)
+        #expect(CodexHooks.hookInstallState(of: repaired, cliPath: cli) == .installed)
+        #expect(try CodexHooks.installHooks(into: repaired, cliPath: cli) == repaired)
+        let repairedRoot = try #require(try JSONSerialization.jsonObject(with: repaired) as? [String: Any])
+        let repairedHooks = try #require(repairedRoot["hooks"] as? [String: Any])
+        let groups = try #require(repairedHooks["SessionEnd"] as? [[String: Any]])
+        let preserved = try #require(groups.first?["hooks"] as? [Any])
+        #expect(groups.first?["matcher"] as? String == "other")
+        #expect(preserved.count == 2)
+        #expect(preserved.first is NSNull)
+        #expect(NSDictionary(dictionary: try #require(preserved.last as? [String: Any]))
+            == NSDictionary(dictionary: foreign))
+        let ours = try #require(groups.last?["hooks"] as? [[String: Any]])
+        #expect(ours.count == 1)
+        #expect(ours.first?["timeout"] as? Int == 3)
+    }
+}
+
 // MARK: - Records
 
 @Test func codexRecordsAreOwnedByCodexAndSparedByOtherRemovals() throws {
