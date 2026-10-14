@@ -203,14 +203,15 @@ It lives quietly in the menu bar, no Dock icon, no clutter.
   A network handoff can briefly interrupt requests; agents must handle their
   own reconnects.
 - 🍃 **Closed-lid Low Power Mode.** An optional switch in General's
-  closed-display section temporarily selects Low Power Mode on battery while
-  the lid is shut and the sleep override is active. The administrator helper
-  restores the previous battery mode when the lid opens, the override ends,
-  AC power is connected, or the app disconnects. Its restore journal also
-  survives daemon restarts. The power-adapter setting is untouched.
+  closed-display section temporarily selects Low Power Mode while the lid is
+  shut and the sleep override is active. Battery only by default; optionally
+  include plugged-in use. The administrator helper preserves battery and
+  adapter settings independently, confirms each write, and restores them when
+  the lid opens, the override ends, or the app disconnects. Its restore journal
+  also survives daemon restarts. The status explains what it is waiting for.
 - 🌀 **Closed-lid fan floor.** On supported Macs with fans, opt into a minimum
   fan speed while closed-display mode is active and the lid is shut. Starts at
-  50% of the fan range, with an adjustable level. This is independent of the
+  50% of the fan range, adjustable from 10% to 100%. This is independent of the
   thermal heat boost and pause settings: a heat boost can raise the floor, then
   return to it when the Mac cools. Fanless Macs keep the existing thermal pause
   behavior. Disarming or quitting restores automatic fan control.

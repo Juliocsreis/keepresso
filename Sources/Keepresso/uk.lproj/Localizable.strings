@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Мінімальна швидкість: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Керування вентиляторами активне. Тест доступний після завершення всіх запитів.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Діє лише із закритою кришкою та активним режимом закритого дисплея. Теплове прискорення може підвищити мінімум; налаштування прискорення й паузи вище залишаються незалежними. Повертає керування системі після завершення режиму.";
+"Choose another use" = "Вибрати інший спосіб використання";
+"Also use while plugged in" = "Використовувати також із підключеним живленням";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Використовує режим низького енергоспоживання із закритою кришкою та активним режимом закритого дисплея. Типово лише від батареї. Відновлює налаштування живлення після відкриття кришки або завершення режиму. Потрібен помічник адміністратора.";
+"Install or update the administrator helper to use Low Power Mode." = "Установіть або оновіть помічник адміністратора для режиму низького енергоспоживання.";
+"Waiting for closed-display mode to be active." = "Очікування ввімкнення режиму закритого дисплея.";
+"Low Power Mode will turn on when the lid closes." = "Режим низького енергоспоживання ввімкнеться після закриття кришки.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Очікування живлення від батареї. Дозвольте використання з підключеним живленням, щоб включити адаптер.";
+"Updating Low Power Mode…" = "Оновлення режиму низького енергоспоживання…";
+"Low Power Mode is active." = "Режим низького енергоспоживання активний.";

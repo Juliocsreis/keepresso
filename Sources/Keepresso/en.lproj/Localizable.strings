@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Minimum fan speed: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Fan control is active, so the test stays off until all fan holds end.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends.";
+"Choose another use" = "Choose another use";
+"Also use while plugged in" = "Also use while plugged in";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper.";
+"Install or update the administrator helper to use Low Power Mode." = "Install or update the administrator helper to use Low Power Mode.";
+"Waiting for closed-display mode to be active." = "Waiting for closed-display mode to be active.";
+"Low Power Mode will turn on when the lid closes." = "Low Power Mode will turn on when the lid closes.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Waiting for battery power. Enable plugged-in use to include the power adapter.";
+"Updating Low Power Mode…" = "Updating Low Power Mode…";
+"Low Power Mode is active." = "Low Power Mode is active.";

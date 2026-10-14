@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "最低ファン速度: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "ファン制御が有効です。すべてのファン制御が終わるまでテストは無効です。";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "蓋を閉じ、閉じたディスプレイモードが有効な間だけ適用します。熱による増速で最低速度を上げられます。上の増速と一時停止の設定は独立しています。モード終了時に制御をシステムへ戻します。";
+"Choose another use" = "別の使い方を選ぶ";
+"Also use while plugged in" = "電源接続中も使用";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "蓋を閉じ、閉じたディスプレイモードが有効な間、低電力モードを使います。初期設定ではバッテリー駆動時のみです。蓋を開くかモードが終了すると各電源設定を元に戻します。管理者ヘルパーが必要です。";
+"Install or update the administrator helper to use Low Power Mode." = "低電力モードを使うには管理者ヘルパーをインストールまたは更新してください。";
+"Waiting for closed-display mode to be active." = "閉じたディスプレイモードの有効化を待っています。";
+"Low Power Mode will turn on when the lid closes." = "蓋を閉じると低電力モードが有効になります。";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "バッテリー駆動を待っています。電源接続中の使用を有効にすると、電源アダプタも対象になります。";
+"Updating Low Power Mode…" = "低電力モードを更新中…";
+"Low Power Mode is active." = "低電力モードが有効です。";

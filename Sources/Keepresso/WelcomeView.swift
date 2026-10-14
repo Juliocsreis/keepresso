@@ -23,6 +23,7 @@ struct WelcomeView: View {
     /// The preset id of the use case the user picked, for the checkmark. Local
     /// to this window: applying a preset is the persisted action.
     @State private var selectedUseCase: String?
+    @State private var showOtherUseCases = false
     /// Drives the one-time entrance: sections fade up in a quick stagger the
     /// first time the window draws. Skipped entirely under Reduce Motion.
     @State private var revealed = false
@@ -294,8 +295,18 @@ struct WelcomeView: View {
                 .font(type.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            ForEach(Self.useCases) { useCase in
-                useCaseRow(useCase)
+            if let selected = Self.useCases.first(where: { $0.id == selectedUseCase }) {
+                useCaseRow(selected)
+                DisclosureGroup("Choose another use", isExpanded: $showOtherUseCases) {
+                    ForEach(Self.useCases.filter { $0.id != selectedUseCase }) { useCase in
+                        useCaseRow(useCase)
+                    }
+                }
+                .font(type.caption)
+            } else {
+                ForEach(Self.useCases) { useCase in
+                    useCaseRow(useCase)
+                }
             }
             if selectedUseCase == "cloud-gaming" {
                 gamingJitterCallout
@@ -306,7 +317,7 @@ struct WelcomeView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .animation(.snappy(duration: 0.25), value: selectedUseCase)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: selectedUseCase)
         .entrance(0, revealed: revealed, animated: !reduceMotion)
     }
 
@@ -711,6 +722,7 @@ struct WelcomeView: View {
             model.applyPreset(preset)
         }
         selectedUseCase = useCase.id
+        showOtherUseCases = false
     }
 
     /// A pickable use case: applying it switches the whole rule set to the

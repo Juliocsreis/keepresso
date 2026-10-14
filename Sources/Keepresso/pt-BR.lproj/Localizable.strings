@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Velocidade mínima: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "O controle das ventoinhas está ativo. O teste aguarda o fim de todas as solicitações.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Aplica-se apenas com a tampa fechada e o modo de tela fechada ativo. O reforço térmico pode elevar o mínimo; reforço e pausa continuam independentes. Devolve o controle ao sistema ao encerrar o modo.";
+"Choose another use" = "Escolher outro uso";
+"Also use while plugged in" = "Usar também ligado à energia";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Usa o modo Pouca Energia com a tampa fechada e o modo de tela fechada ativo. Por padrão, apenas na bateria. Restaura cada ajuste de energia ao abrir a tampa ou terminar o modo. Requer o assistente de administrador.";
+"Install or update the administrator helper to use Low Power Mode." = "Instale ou atualize o assistente de administrador para usar o modo Pouca Energia.";
+"Waiting for closed-display mode to be active." = "Aguardando a ativação do modo de tela fechada.";
+"Low Power Mode will turn on when the lid closes." = "O modo Pouca Energia será ativado ao fechar a tampa.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Aguardando energia da bateria. Ative o uso ligado à energia para incluir o adaptador.";
+"Updating Low Power Mode…" = "Atualizando o modo Pouca Energia…";
+"Low Power Mode is active." = "Modo Pouca Energia ativo.";

@@ -20,35 +20,45 @@ struct HotspotPreferencesSection: View {
         Section {
             Toggle("Automatic hotspot fallback", isOn: setting(\.enabled))
             if model.hotspotConfig.enabled {
-                HStack {
-                    TextField("Hotspot name", text: setting(\.ssid))
-                    Menu {
-                        ForEach(model.hotspot.nearby, id: \.self) { ssid in
-                            Button { var config = model.hotspotConfig; config.ssid = ssid; model.hotspotConfig = config } label: {
-                                Text(verbatim: ssid)
+                LabeledContent("Hotspot name") {
+                    HStack {
+                        TextField("", text: setting(\.ssid))
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel(Text("Hotspot name"))
+                            .frame(minWidth: 100, maxWidth: 240)
+                        Menu {
+                            ForEach(model.hotspot.nearby, id: \.self) { ssid in
+                                Button { var config = model.hotspotConfig; config.ssid = ssid; model.hotspotConfig = config } label: {
+                                    Text(verbatim: ssid)
+                                }
                             }
-                        }
-                        Divider()
-                        Button("Refresh") { Task { await model.hotspot.scan() } }
-                    } label: { Text("Choose network") }
-                    .disabled(model.hotspot.scanning || !location.isAuthorized)
+                            Divider()
+                            Button("Refresh") { Task { await model.hotspot.scan() } }
+                        } label: { Text("Choose network") }
+                        .disabled(model.hotspot.scanning || !location.isAuthorized)
+                    }
                 }
-                HStack {
-                    SecureField("Hotspot password", text: $password)
-                    Button("Save password") {
-                        let ssid = model.hotspotConfig.ssid
-                        let value = password
-                        saving = true; credentialRevision &+= 1
-                        Task {
-                            do {
-                                try await model.saveHotspotPassword(value, ssid: ssid)
-                                if model.hotspotConfig.ssid == ssid { saved = true; password = ""; error = nil }
+                LabeledContent("Hotspot password") {
+                    HStack {
+                        SecureField("", text: $password)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel(Text("Hotspot password"))
+                            .frame(minWidth: 100, maxWidth: 240)
+                        Button("Save password") {
+                            let ssid = model.hotspotConfig.ssid
+                            let value = password
+                            saving = true; credentialRevision &+= 1
+                            Task {
+                                do {
+                                    try await model.saveHotspotPassword(value, ssid: ssid)
+                                    if model.hotspotConfig.ssid == ssid { saved = true; password = ""; error = nil }
+                                }
+                                catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
+                                saving = false
                             }
-                            catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
-                            saving = false
-                        }
                     }
                     .disabled(saving || password.isEmpty || model.hotspotConfig.ssid.isEmpty || model.hotspotConfig.ssid.utf8.count > 32)
+                    }
                 }
                 if saved {
                     HStack {
@@ -57,8 +67,9 @@ struct HotspotPreferencesSection: View {
                         Spacer()
                         Button("Forget password") {
                             let ssid = model.hotspotConfig.ssid
-                            credentialRevision &+= 1
+                            saving = true; credentialRevision &+= 1
                             Task {
+                                defer { saving = false }
                                 do {
                                     try await model.forgetHotspotPassword(ssid: ssid)
                                     if model.hotspotConfig.ssid == ssid { saved = false }
@@ -66,6 +77,7 @@ struct HotspotPreferencesSection: View {
                                 catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
                             }
                         }
+                        .disabled(saving)
                     }
                     .font(.caption)
                 }
@@ -98,7 +110,7 @@ struct HotspotPreferencesSection: View {
                         Text("Allow Location access to find Wi-Fi networks.")
                         Spacer()
                         if location.canRequest { Button("Allow Location") { location.request() } }
-                        else { Button("Open Settings") { openLocationSettings() } }
+                        Button("Open Settings") { openLocationSettings() }
                     }
                     .font(.caption)
                 }
@@ -126,8 +138,15 @@ struct HotspotPreferencesSection: View {
             let present = await model.hasHotspotPassword(ssid: ssid)
             if !Task.isCancelled && revision == credentialRevision { saved = present }
         }
+        .task(id: location.isAuthorized && model.hotspotConfig.enabled) {
+            if location.isAuthorized && model.hotspotConfig.enabled { await model.hotspot.scan() }
+        }
     }
     private var status: String {
+        if model.hotspotConfig.enabled {
+            if model.hotspotConfig.ssid.isEmpty { return L("Choose network") }
+            if !saved { return L("Save the hotspot password first.") }
+        }
         switch model.hotspot.status {
         case .off: return L("Hotspot fallback is off.")
         case .waiting: return L("Waiting for the selected keep-awake conditions.")

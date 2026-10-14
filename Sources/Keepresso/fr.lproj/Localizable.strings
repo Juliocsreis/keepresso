@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Vitesse minimale : %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Le contrôle des ventilateurs est actif. Le test attend la fin de toutes les commandes.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "S’applique uniquement avec le capot fermé et le mode écran fermé actif. Le renfort thermique peut augmenter ce minimum ; les réglages de renfort et de pause restent indépendants. Rend le contrôle au système à la fin du mode.";
+"Choose another use" = "Choisir un autre usage";
+"Also use while plugged in" = "Utiliser aussi sur secteur";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Utilise le mode économie d’énergie avec le capot fermé et le mode écran fermé actif. Sur batterie uniquement par défaut. Restaure chaque réglage d’alimentation à l’ouverture du capot ou à la fin du mode. Nécessite l’assistant administrateur.";
+"Install or update the administrator helper to use Low Power Mode." = "Installez ou mettez à jour l’assistant administrateur pour utiliser le mode économie d’énergie.";
+"Waiting for closed-display mode to be active." = "En attente de l’activation du mode écran fermé.";
+"Low Power Mode will turn on when the lid closes." = "Le mode économie d’énergie s’activera à la fermeture du capot.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "En attente de l’alimentation sur batterie. Activez l’utilisation sur secteur pour inclure l’adaptateur.";
+"Updating Low Power Mode…" = "Mise à jour du mode économie d’énergie…";
+"Low Power Mode is active." = "Le mode économie d’énergie est actif.";

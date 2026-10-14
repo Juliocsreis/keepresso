@@ -48,7 +48,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>43</string>
+	<string>44</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
@@ -59,6 +59,8 @@
 	<string>Keepresso checks whether a calendar event is in progress so it can keep your Mac awake during your scheduled sessions.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Keepresso contributors. GNU GPL v3.0.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Keepresso reads Wi-Fi network names for your triggers and to find the hotspot you choose for automatic fallback.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Keepresso reads Wi-Fi network names for your triggers and to find the hotspot you choose for automatic fallback.</string>
 	<key>SUEnableAutomaticChecks</key>

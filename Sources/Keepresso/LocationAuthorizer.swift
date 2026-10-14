@@ -1,5 +1,6 @@
 import CoreLocation
 import Observation
+import AppKit
 
 /// Tracks (and requests) Location Services authorization.
 ///
@@ -38,6 +39,7 @@ final class LocationAuthorizer: NSObject, CLLocationManagerDelegate {
 
     /// Show the system permission prompt (no-op if already decided).
     func request() {
+        NSApp.activate(ignoringOtherApps: true)
         manager.requestWhenInUseAuthorization()
     }
 

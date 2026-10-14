@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "最低風扇速度：%d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "風扇控制已啟用，所有風扇控制要求結束前無法測試。";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "僅在闔蓋且闔蓋模式啟用時生效。過熱加速可提高最低速度；上方的加速和暫停設定保持獨立。模式結束時將風扇控制交還系統。";
+"Choose another use" = "選擇其他用途";
+"Also use while plugged in" = "接上電源時也使用";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "闔蓋且閉蓋模式啟用時使用低耗電模式。預設僅限電池供電。開蓋或模式結束時還原各項電源設定。需要管理員輔助程式。";
+"Install or update the administrator helper to use Low Power Mode." = "安裝或更新管理員輔助程式以使用低耗電模式。";
+"Waiting for closed-display mode to be active." = "等待閉蓋模式啟用。";
+"Low Power Mode will turn on when the lid closes." = "闔蓋時將啟用低耗電模式。";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "等待電池供電。啟用接上電源時使用可包括電源轉接器。";
+"Updating Low Power Mode…" = "正在更新低耗電模式…";
+"Low Power Mode is active." = "低耗電模式已啟用。";

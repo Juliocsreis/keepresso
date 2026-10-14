@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Минимальная скорость: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Управление вентиляторами активно. Тест доступен после завершения всех запросов.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Работает только при закрытой крышке и активном режиме закрытого дисплея. Тепловое ускорение может повысить минимум; настройки ускорения и паузы выше остаются независимыми. Возвращает управление системе после завершения режима.";
+"Choose another use" = "Выбрать другой способ использования";
+"Also use while plugged in" = "Использовать и при подключении к питанию";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Использует режим энергосбережения при закрытой крышке и активном режиме закрытого дисплея. По умолчанию только от батареи. Восстанавливает настройки питания при открытии крышки или завершении режима. Требуется помощник администратора.";
+"Install or update the administrator helper to use Low Power Mode." = "Установите или обновите помощник администратора для режима энергосбережения.";
+"Waiting for closed-display mode to be active." = "Ожидание включения режима закрытого дисплея.";
+"Low Power Mode will turn on when the lid closes." = "Режим энергосбережения включится при закрытии крышки.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Ожидание питания от батареи. Разрешите использование при подключении к питанию для адаптера.";
+"Updating Low Power Mode…" = "Обновление режима энергосбережения…";
+"Low Power Mode is active." = "Режим энергосбережения включён.";

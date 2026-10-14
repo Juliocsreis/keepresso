@@ -10,21 +10,28 @@ Versions follow [Semantic Versioning](https://semver.org).
 - Opt-in hotspot fallback in Preferences > General, with a selected secure
   network, Keychain password storage, session or closed-display scope, grace
   and retry controls, a battery cutoff, and connection notifications.
-- Optional battery Low Power Mode while closed-display mode is active with the
-  lid shut. The helper restores the previous setting on release or disconnect
+- Optional Low Power Mode while closed-display mode is active with the lid
+  shut, on battery by default with an option for plugged-in use. The helper
+  verifies writes, restores each profile independently on release or disconnect,
   and journals it for recovery after a daemon restart.
 - Independent, opt-in minimum fan speed during closed-display mode on supported
-  Macs. Heat boosts can raise the floor, and fanless Macs retain their existing
-  thermal pause behavior. Existing thermal configuration is preserved.
+  Macs, adjustable from 10 percent. Heat boosts can raise the floor, and fanless
+  Macs retain their existing thermal pause behavior. Existing thermal
+  configuration is preserved.
 
 ### Changed
 
 - Share branded agent connection rows between onboarding and Preferences.
   Include Codex's hook approval reminder in both. Bundle all 36 vector brand
   image sets from tokenstat for current and future integrations.
+- Collapse other onboarding uses after a selection, with an option to reopen
+  them. Explain waiting and active states for closed-lid Low Power Mode.
 
 ### Fixed
 
+- Add the macOS Location usage description and Hardened Runtime entitlement
+  needed to show the permission prompt. Scan hotspot networks after approval
+  and provide a direct Settings fallback.
 - Keep dropped fan holds visible to each controller independently, preserve
   closed-lid Low Power Mode across unknown readings, and honor the hotspot
   battery minimum when power information is unavailable. Retain hotspot

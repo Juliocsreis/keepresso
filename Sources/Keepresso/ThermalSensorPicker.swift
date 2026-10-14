@@ -64,14 +64,14 @@ struct TemperatureThresholdSlider: View {
 /// not write through while it moves.
 struct FanBoostSlider: View {
     @Binding var percent: Int
+    var percentRange: ClosedRange<Int> = ThermalSafetyConfig.boostPercentRange
 
     @State private var dragValue: Double?
 
-    private static let range = Double(ThermalSafetyConfig.boostPercentRange.lowerBound)
-        ... Double(ThermalSafetyConfig.boostPercentRange.upperBound)
+    private var range: ClosedRange<Double> { Double(percentRange.lowerBound)...Double(percentRange.upperBound) }
 
     private var clamped: Double {
-        min(max(Double(percent), Self.range.lowerBound), Self.range.upperBound)
+        min(max(Double(percent), range.lowerBound), range.upperBound)
     }
 
     private var shown: Int { Int(dragValue ?? clamped) }
@@ -92,7 +92,7 @@ struct FanBoostSlider: View {
                         }
                     }
                 ),
-                in: Self.range,
+                in: range,
                 step: 5
             ) {
                 Text("Fan boost")

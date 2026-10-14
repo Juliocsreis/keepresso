@@ -847,6 +847,14 @@ private final class FakeBatteryLowPower: BatteryLowPowerControlling, @unchecked 
     var mode: Int? = 0
     var succeed = true
     var writes: [Int] = []
+    var adapter: Int? = 2
+    var adapterWrites: [Int] = []
+    func adapterMode() -> Int? { adapter }
+    func setAdapterMode(_ mode: Int) -> Bool {
+        adapterWrites.append(mode)
+        guard succeed else { return false }
+        adapter = mode; return true
+    }
     func batteryMode() -> Int? { mode }
     func setBatteryMode(_ mode: Int) -> Bool {
         writes.append(mode)
@@ -930,4 +938,76 @@ private final class FakeBatteryLowPower: BatteryLowPowerControlling, @unchecked 
     #expect(engine.fanHoldWasDropped(client: 2))
     engine.clientDisconnected(2)
     #expect(!engine.fanHoldWasDropped(client: 2))
+}
+
+@Test func lowPowerProfilesKeepIndependentRestoreValuesAcrossDisconnectAndRestart() {
+    let control = FakeBatteryLowPower()
+    let state = FakeRestoreState()
+    let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    #expect(engine.setLowPowerHold(client: 1, holding: true))
+    #expect(engine.setAdapterLowPowerHold(client: 1, holding: true))
+    #expect(engine.setAdapterLowPowerHold(client: 2, holding: true))
+    #expect(state.value(for: .batteryLowPower) == "0")
+    #expect(state.value(for: .adapterLowPower) == "2")
+    engine.clientDisconnected(1)
+    #expect(control.mode == 0 && control.adapter == 1)
+    #expect(!engine.isIdle)
+    // A daemon crash restores the remaining adapter debt separately.
+    let restarted = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    restarted.restoreAtLaunch()
+    #expect(control.adapter == 2)
+    #expect(state.markers().isEmpty)
+}
+
+@Test func helperFanFloorAcceptsTenPercent() {
+    let fans = FakeFanControl()
+    let engine = HelperEngine(runner: FakeRunner(), state: FakeRestoreState(), fans: fans)
+    #expect(engine.setFanHold(client: 1, holding: true, percent: 10))
+    #expect(fans.forcedPercents == [10])
+    engine.clientDisconnected(1)
+    #expect(fans.restoreCalls == 1)
+}
+
+private final class PowerModeCommandStub: HelperCommandRunning, @unchecked Sendable {
+    var battery = 0
+    var adapter = 2
+    var apply = true
+    var commands: [[String]] = []
+    func output() -> String { "Battery Power:\n powermode \(battery)\nAC Power:\n powermode \(adapter)" }
+    func run(_ executable: String, _ arguments: [String]) -> Bool {
+        commands.append(arguments)
+        if apply, let mode = Int(arguments.last ?? "") {
+            if arguments.first == "-b" { battery = mode } else { adapter = mode }
+        }
+        return true
+    }
+}
+@Test func lowPowerWritesAreProfileSpecificAndRequireReadbackConfirmation() {
+    let stub = PowerModeCommandStub()
+    let control = PMSetBatteryLowPowerControl(runner: stub, readOutput: { stub.output() })
+    #expect(control.setBatteryMode(1))
+    #expect(stub.adapter == 2)
+    #expect(control.setAdapterMode(1))
+    #expect(stub.commands == [["-b", "powermode", "1"], ["-c", "powermode", "1"]])
+    stub.apply = false
+    #expect(!control.setAdapterMode(2))
+    #expect(control.adapterMode() == 1)
+    #expect(PMSetBatteryLowPowerControl.parseMode("AC Power:\n lowpowermode 0\nBattery Power:\n lowpowermode 1", profile: .adapter) == 0)
+}
+
+@Test func unsupportedAdapterLowPowerNeverWritesAndUserAdapterChangesArePreserved() {
+    let control = FakeBatteryLowPower(); control.adapter = nil
+    let state = FakeRestoreState()
+    let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    #expect(engine.setLowPowerHold(client: 1, holding: true))
+    #expect(!engine.setAdapterLowPowerHold(client: 1, holding: true))
+    #expect(control.adapterWrites.isEmpty)
+    #expect(state.value(for: .adapterLowPower) == nil)
+    control.adapter = 2
+    #expect(engine.setAdapterLowPowerHold(client: 1, holding: true))
+    control.adapter = 0 // changed in System Settings while held
+    engine.clientDisconnected(1)
+    #expect(control.adapter == 0 && control.mode == 0)
+    #expect(control.adapterWrites == [1])
+    #expect(state.markers().isEmpty)
 }

@@ -22,6 +22,8 @@ jobs:
         run: python3 tools/localization/check_all.py
       - name: Check app, widget, and helper versions
         run: bash scripts/check-versions.sh
+      - name: Check Location permission metadata
+        run: python3 scripts/check-location-permission.py
 
   core-tests:
     name: Core build & tests

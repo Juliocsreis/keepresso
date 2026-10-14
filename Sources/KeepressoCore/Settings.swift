@@ -38,6 +38,8 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
     public var hotspotFallback: HotspotFallbackConfig
     /// Temporarily use battery Low Power Mode during closed-display operation.
     public var closedLidLowPower: Bool
+    /// Also apply Low Power Mode to the adapter profile while the lid is closed.
+    public var closedLidLowPowerOnAC: Bool
     /// Independent, opt-in fan floor while the lid and sleep override are both closed/on.
     public var closedLidMinimumFanPercent: Int?
     /// Keep a chosen disk/volume spun up, or `nil` (the default) for off.
@@ -137,6 +139,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         automationSync: AutomationSyncConfig = AutomationSyncConfig(),
         hotspotFallback: HotspotFallbackConfig = HotspotFallbackConfig(),
         closedLidLowPower: Bool = false,
+        closedLidLowPowerOnAC: Bool = false,
         closedLidMinimumFanPercent: Int? = nil,
         diskKeepAlive: DiskKeepAliveConfig? = nil,
         virtualDisplay: VirtualDisplayConfig? = nil,
@@ -178,7 +181,8 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         self.automationSync = automationSync
         self.hotspotFallback = hotspotFallback.normalized()
         self.closedLidLowPower = closedLidLowPower
-        self.closedLidMinimumFanPercent = closedLidMinimumFanPercent.map(ThermalSafetyConfig.clampedBoostPercent)
+        self.closedLidLowPowerOnAC = closedLidLowPowerOnAC
+        self.closedLidMinimumFanPercent = closedLidMinimumFanPercent.map(ClosedLidFanFloor.clampedPercent)
         self.diskKeepAlive = diskKeepAlive
         self.virtualDisplay = virtualDisplay
         self.thermalSafety = thermalSafety
@@ -280,8 +284,9 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         wakeSchedule = try c.decodeIfPresent(WakeScheduleConfig.self, forKey: .wakeSchedule)
         hotspotFallback = ((try? c.decodeIfPresent(HotspotFallbackConfig.self, forKey: .hotspotFallback)) ?? HotspotFallbackConfig()).normalized()
         closedLidLowPower = (try? c.decodeIfPresent(Bool.self, forKey: .closedLidLowPower)) ?? false
+        closedLidLowPowerOnAC = (try? c.decodeIfPresent(Bool.self, forKey: .closedLidLowPowerOnAC)) ?? false
         closedLidMinimumFanPercent = (try? c.decodeIfPresent(Int.self, forKey: .closedLidMinimumFanPercent))
-            .map(ThermalSafetyConfig.clampedBoostPercent)
+            .map(ClosedLidFanFloor.clampedPercent)
         automationSync = try c.decodeIfPresent(AutomationSyncConfig.self, forKey: .automationSync) ?? AutomationSyncConfig()
         diskKeepAlive = try c.decodeIfPresent(DiskKeepAliveConfig.self, forKey: .diskKeepAlive)
         virtualDisplay = try c.decodeIfPresent(VirtualDisplayConfig.self, forKey: .virtualDisplay)

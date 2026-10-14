@@ -70,6 +70,10 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
         record("setLowPowerHold(\(holding))")
         return holdSucceeds
     }
+    func setAdapterLowPowerHold(_ holding: Bool) -> Bool {
+        record("setAdapterLowPowerHold(\(holding))")
+        return holdSucceeds
+    }
 
     func setKeyboardLock(_ holding: Bool) -> Bool {
         record("setKeyboardLock(\(holding))")
@@ -357,4 +361,46 @@ private final class LockedFlag: @unchecked Sendable {
     for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
     #expect(!controller.holding)
     #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}
+
+@Test @MainActor func lowPowerPluggedInOptInHoldsAndRestoresBothProfiles() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: false, helperAvailable: true)
+    #expect(controller.status == .waitingForBattery)
+    #expect(helper.calls.isEmpty)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: false, helperAvailable: true, allowOnAC: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.batteryHolding && controller.adapterHolding)
+    #expect(controller.status == .active)
+    // Unplugging needs no profile rewrite when both profiles were opted in.
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setAdapterLowPowerHold(true)"])
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.holding && !controller.hasPendingRequests)
+    #expect(helper.calls.suffix(2) == ["setAdapterLowPowerHold(false)", "setLowPowerHold(false)"])
+}
+
+@Test @MainActor func lowPowerTurningOffAfterFailedEngageStillReleasesRestoreDebt() async throws {
+    let helper = FakeHelperClient(); helper.holdSucceeds = false
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.failed && controller.hasPendingRequests)
+    helper.holdSucceeds = true
+    controller.tick(enabled: false, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.hasPendingRequests && !controller.failed)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}
+
+@Test func fanFloorTenPercentSurvivesSettingsRoundTripWithoutChangingBoostRange() throws {
+    let settings = KeepressoSettings(closedLidMinimumFanPercent: 10)
+    #expect(try JSONDecoder().decode(KeepressoSettings.self, from: JSONEncoder().encode(settings)).closedLidMinimumFanPercent == 10)
+    #expect(ClosedLidFanFloor.clampedPercent(1) == 10)
+    #expect(ThermalSafetyConfig.clampedBoostPercent(10) == 30)
+    #expect(!settings.closedLidLowPowerOnAC)
+    let old = try JSONDecoder().decode(KeepressoSettings.self, from: Data(#"{"closedLidLowPower":true}"#.utf8))
+    #expect(old.closedLidLowPower && !old.closedLidLowPowerOnAC)
 }

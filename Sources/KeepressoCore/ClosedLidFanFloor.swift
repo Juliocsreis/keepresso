@@ -6,7 +6,8 @@ import Observation
 /// returns to the floor without changing any thermal settings.
 public enum ClosedLidFanFloor {
     public static let defaultPercent = 50
-    public static func clampedPercent(_ percent: Int) -> Int { ThermalSafetyConfig.clampedBoostPercent(percent) }
+    public static let percentRange = 10...100
+    public static func clampedPercent(_ percent: Int) -> Int { min(100, max(10, percent)) }
     public static func requestedPercent(_ percent: Int?, armed: Bool, supported: Bool) -> Int? {
         guard armed, supported, let percent else { return nil }
         return clampedPercent(percent)

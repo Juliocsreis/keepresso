@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Minimalna prędkość: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Sterowanie wentylatorami jest aktywne. Test czeka na zakończenie wszystkich żądań.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Działa tylko przy zamkniętej pokrywie i aktywnym trybie zamkniętego ekranu. Wzmocnienie termiczne może zwiększyć minimum; ustawienia wzmocnienia i pauzy powyżej pozostają niezależne. Po zakończeniu oddaje sterowanie systemowi.";
+"Choose another use" = "Wybierz inny sposób użycia";
+"Also use while plugged in" = "Używaj także po podłączeniu zasilania";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Używa trybu niskiego zużycia energii przy zamkniętej pokrywie i aktywnym trybie zamkniętego ekranu. Domyślnie tylko na baterii. Przywraca ustawienia zasilania po otwarciu pokrywy lub zakończeniu trybu. Wymaga pomocnika administratora.";
+"Install or update the administrator helper to use Low Power Mode." = "Zainstaluj lub zaktualizuj pomocnika administratora, aby używać trybu niskiego zużycia energii.";
+"Waiting for closed-display mode to be active." = "Oczekiwanie na aktywację trybu zamkniętego ekranu.";
+"Low Power Mode will turn on when the lid closes." = "Tryb niskiego zużycia energii włączy się po zamknięciu pokrywy.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Oczekiwanie na zasilanie z baterii. Włącz użycie po podłączeniu zasilania, aby uwzględnić zasilacz.";
+"Updating Low Power Mode…" = "Aktualizowanie trybu niskiego zużycia energii…";
+"Low Power Mode is active." = "Tryb niskiego zużycia energii jest aktywny.";

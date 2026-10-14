@@ -44,7 +44,9 @@ public enum HelperService {
     /// 10: connection-scoped battery Low Power Mode.
     /// 11: dropped fan holds are reported per connection, so independent
     ///     floor and heat controllers cannot clear each other's status.
-    public static let protocolVersion = 11
+    /// 12: adapter Low Power Mode and fan floor requests down to ten percent.
+    public static let protocolVersion = 12
+    public static let adapterLowPowerMinProtocol = 12
     public static let lowPowerMinProtocol = 10
     /// First protocol that shipped `flushDNS`. Older daemons lack the verb.
     public static let flushDNSMinProtocol = 8
@@ -273,6 +275,7 @@ public enum HelperPeerPolicy {
     func setKeyboardLock(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void)
     /// Temporarily select battery Low Power Mode, restoring the previous mode after release.
     func setLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void)
+    func setAdapterLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void)
     /// Ask the daemon to exit at its first fully idle moment, without the
     /// ordinary exit's extra grace period (see ``HelperShutdownPolicy``), so
     /// launchd relaunches the binary currently in the bundle on the next call.
@@ -315,11 +318,13 @@ public protocol PrivilegedHelperCalling: AnyObject, Sendable {
     func setKeyboardLock(_ holding: Bool) -> Bool
     /// Connection-scoped battery Low Power Mode (protocol 10 or newer).
     func setLowPowerHold(_ holding: Bool) -> Bool
+    func setAdapterLowPowerHold(_ holding: Bool) -> Bool
 }
 
 public extension PrivilegedHelperCalling {
     // Existing test doubles and clients without the new verb report unsupported.
     func setLowPowerHold(_ holding: Bool) -> Bool { false }
+    func setAdapterLowPowerHold(_ holding: Bool) -> Bool { false }
 }
 
 /// Real client over `NSXPCConnection`. The connection *is* the app's claim on
@@ -348,8 +353,9 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
     /// restart re-applies the disable table, and an app death restores keys.
     private var wantsKeyboardLock = false
     private var wantsLowPowerHold = false
-    /// The six holds this client can keep, each with its own generation.
-    private enum HoldKind: Hashable { case sleep, awdl, fan, priority, keyboard, lowPower }
+    private var wantsAdapterLowPowerHold = false
+    /// The seven holds this client can keep, each with its own generation.
+    private enum HoldKind: Hashable { case sleep, awdl, fan, priority, keyboard, lowPower, adapterLowPower }
     /// Bumped on every release and at the start of a reassert so an
     /// in-flight `set*Hold(true)` from a previous interrupt cannot re-take
     /// a hold the app already released. Counted **per kind**: releasing the
@@ -580,6 +586,33 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
         return ok
     }
 
+    public func setAdapterLowPowerHold(_ holding: Bool) -> Bool {
+        guard let version = pingVersion(), version >= HelperService.adapterLowPowerMinProtocol else { return false }
+        // See setSleepHold: the state change after `call` needs its own release.
+        defer { releaseConnectionUnlessHeld() }
+        if holding {
+            lock.lock()
+            wantsAdapterLowPowerHold = true
+            lock.unlock()
+            let ok = call { proxy, done in proxy.setAdapterLowPowerHold(true, reply: done) }
+            if !ok {
+                lock.lock()
+                wantsAdapterLowPowerHold = false
+                bumpGeneration(.adapterLowPower)
+                lock.unlock()
+            }
+            return ok
+        }
+        let ok = call { proxy, done in proxy.setAdapterLowPowerHold(false, reply: done) }
+        if ok {
+            lock.lock()
+            wantsAdapterLowPowerHold = false
+            bumpGeneration(.adapterLowPower)
+            lock.unlock()
+        }
+        return ok
+    }
+
     public func setKeyboardLock(_ holding: Bool) -> Bool {
         // See setSleepHold: the state change after `call` needs its own release.
         defer { releaseConnectionUnlessHeld() }
@@ -669,7 +702,7 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
     private func releaseConnectionUnlessHeld() {
         lock.lock()
         let held = callsInFlight > 0 || wantsSleepHold || wantsAWDLHold || wantsFanHold != nil
-            || wantsPriorityHold != nil || wantsKeyboardLock || wantsLowPowerHold
+            || wantsPriorityHold != nil || wantsKeyboardLock || wantsLowPowerHold || wantsAdapterLowPowerHold
         let stale = held ? nil : connection
         if !held { connection = nil }
         lock.unlock()
@@ -749,7 +782,7 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
         // One generation per kind: a release of one hold must not make the
         // in-flight reassert of another look stale.
         var generations: [HoldKind: Int] = [:]
-        for kind in [HoldKind.sleep, .awdl, .fan, .priority, .keyboard, .lowPower] {
+        for kind in [HoldKind.sleep, .awdl, .fan, .priority, .keyboard, .lowPower, .adapterLowPower] {
             bumpGeneration(kind)
             generations[kind] = holdGeneration[kind]
         }
@@ -760,6 +793,7 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
         let priority = wantsPriorityHold
         let keyboard = wantsKeyboardLock
         let lowPower = wantsLowPowerHold
+        let adapterLowPower = wantsAdapterLowPowerHold
         let stale = connection
         connection = nil
         lock.unlock()
@@ -767,7 +801,7 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
         // (without holding the lock: invalidationHandler also takes it)
         // so the next proxy opens a fresh one to the relaunched daemon.
         stale?.invalidate()
-        guard sleep || awdl || fan != nil || priority != nil || keyboard || lowPower,
+        guard sleep || awdl || fan != nil || priority != nil || keyboard || lowPower || adapterLowPower,
               let proxy = proxyForAsyncUse() else { return }
         if sleep, holdStillWanted(kind: .sleep, generation: gen, { wantsSleepHold }) {
             proxy.setSleepHold(true) { [weak self] _ in
@@ -820,6 +854,15 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
                           kind: .lowPower, generation: gen, { self.wantsLowPowerHold })
                 else { return }
                 proxy.setLowPowerHold(false) { _ in }
+            }
+        }
+        if adapterLowPower, holdStillWanted(kind: .adapterLowPower, generation: gen, { wantsAdapterLowPowerHold }) {
+            proxy.setAdapterLowPowerHold(true) { [weak self] _ in
+                guard let self,
+                      !self.holdStillWanted(
+                          kind: .adapterLowPower, generation: gen, { self.wantsAdapterLowPowerHold })
+                else { return }
+                proxy.setAdapterLowPowerHold(false) { _ in }
             }
         }
     }

@@ -805,12 +805,12 @@ private struct GeneralTab: View {
                     get: { model.closedLidMinimumFanPercent != nil },
                     set: { model.closedLidMinimumFanPercent = $0 ? ClosedLidFanFloor.defaultPercent : nil }
                 ))
-                .disabled(!model.helperInstalled || model.helper.daemonOutdated)
+                .disabled((!model.helperInstalled || model.helper.daemonOutdated) && model.closedLidMinimumFanPercent == nil)
                 if let percent = model.closedLidMinimumFanPercent {
                     LabeledContent("Minimum") {
                         FanBoostSlider(percent: Binding(
                             get: { percent }, set: { model.closedLidMinimumFanPercent = $0 }
-                        ))
+                        ), percentRange: ClosedLidFanFloor.percentRange)
                     }
                     Text("Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -911,15 +911,17 @@ private struct GeneralTab: View {
                 Toggle("Low Power Mode while the lid is closed", isOn: Binding(
                     get: { model.closedLidLowPower }, set: { model.closedLidLowPower = $0 }
                 ))
-                .disabled(!model.helperInstalled)
-                Text("Uses Low Power Mode on battery with the lid closed. Restores your previous setting when the lid opens or closed-display mode ends. Requires the administrator helper.")
+                .disabled((!model.helperInstalled || model.helper.daemonOutdated) && !model.closedLidLowPower)
+                if model.closedLidLowPower {
+                    Toggle("Also use while plugged in", isOn: Binding(
+                        get: { model.closedLidLowPowerOnAC }, set: { model.closedLidLowPowerOnAC = $0 }
+                    ))
+                    .disabled((!model.helperInstalled || model.helper.daemonOutdated) && !model.closedLidLowPowerOnAC)
+                }
+                Text("Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper.")
                     .font(.caption).foregroundStyle(.secondary)
-                if model.closedLidLowPowerController.failed {
-                    Label("Could not update Low Power Mode. Keepresso will retry.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
-                } else if model.closedLidLowPowerController.holding {
-                    Label("Low Power Mode is active on battery.", systemImage: "leaf")
-                        .font(.caption).foregroundStyle(.secondary)
+                if model.closedLidLowPower || model.closedLidLowPowerController.failed {
+                    lowPowerStatus
                 }
             }
             Text("Turn this on and then quit, and Keepresso asks whether to turn it off first.")
@@ -933,6 +935,33 @@ private struct GeneralTab: View {
             model.machineHasBattery
                 ? sectionFooter("Keeps running with the lid shut and no external display.")
                 : sectionFooter("Stops the Mac from sleeping at all until you turn it off.")
+        }
+    }
+
+    @ViewBuilder private var lowPowerStatus: some View {
+        switch model.closedLidLowPowerController.status {
+        case .off: EmptyView()
+        case .needsHelper:
+            Label("Install or update the administrator helper to use Low Power Mode.", systemImage: "lock")
+                .font(.caption).foregroundStyle(.secondary)
+        case .waitingForClosedDisplay:
+            Label("Waiting for closed-display mode to be active.", systemImage: "info.circle")
+                .font(.caption).foregroundStyle(.secondary)
+        case .waitingForLid:
+            Label("Low Power Mode will turn on when the lid closes.", systemImage: "leaf")
+                .font(.caption).foregroundStyle(.secondary)
+        case .waitingForBattery:
+            Label("Waiting for battery power. Enable plugged-in use to include the power adapter.", systemImage: "powerplug")
+                .font(.caption).foregroundStyle(.secondary)
+        case .switching:
+            Label("Updating Low Power Mode…", systemImage: "hourglass")
+                .font(.caption).foregroundStyle(.secondary)
+        case .active:
+            Label("Low Power Mode is active.", systemImage: "leaf")
+                .font(.caption).foregroundStyle(.secondary)
+        case .failed:
+            Label("Could not update Low Power Mode. Keepresso will retry.", systemImage: "exclamationmark.triangle")
+                .font(.caption).foregroundStyle(.orange)
         }
     }
 

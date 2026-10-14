@@ -284,6 +284,10 @@ final class AppModel {
         get { settings.closedLidLowPower }
         set { settings.closedLidLowPower = newValue; persist(); connectivityTick() }
     }
+    var closedLidLowPowerOnAC: Bool {
+        get { settings.closedLidLowPowerOnAC }
+        set { settings.closedLidLowPowerOnAC = newValue; persist(); connectivityTick() }
+    }
     func saveHotspotPassword(_ password: String, ssid: String) async throws {
         try await Task.detached { [hotspotCredentials] in
             try hotspotCredentials.save(password: password, for: ssid)
@@ -306,7 +310,7 @@ final class AppModel {
     func connectivityTick() {
         let useHotspot = settings.hotspotFallback.enabled
         let useLowPower = settings.closedLidLowPower
-        guard useHotspot || useLowPower || closedLidLowPowerController.holding || closedLidLowPowerController.busy else { return }
+        guard useHotspot || useLowPower || closedLidLowPowerController.hasPendingRequests || closedLidLowPowerController.busy else { return }
         let power = connectivityPower.current
         let lidClosed = connectivityLid.isClosed()
         let closed = closedDisplay.isEnabled
@@ -317,7 +321,7 @@ final class AppModel {
         }
         closedLidLowPowerController.tick(enabled: useLowPower, lidClosed: lidClosed, closedDisplayActive: closed,
             onBattery: power.provider == .unknown ? nil : power.provider == .battery,
-            helperAvailable: helper.isInstalled)
+            helperAvailable: helper.isInstalled && !helper.daemonOutdated, allowOnAC: settings.closedLidLowPowerOnAC)
     }
 
     // MARK: - Awake explainer

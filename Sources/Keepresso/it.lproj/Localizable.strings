@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Velocità minima ventole: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Il controllo delle ventole è attivo. Il test attende il termine di tutte le richieste.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Si applica solo con il coperchio chiuso e la modalità schermo chiuso attiva. Il boost termico può alzare il minimo; boost e pausa restano indipendenti. Restituisce il controllo al sistema alla fine della modalità.";
+"Choose another use" = "Scegli un altro utilizzo";
+"Also use while plugged in" = "Usa anche con alimentatore";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Usa il risparmio energetico con il coperchio chiuso e la modalità schermo chiuso attiva. Per impostazione predefinita, solo a batteria. Ripristina ogni impostazione energetica quando apri il coperchio o termina la modalità. Richiede l’assistente amministratore.";
+"Install or update the administrator helper to use Low Power Mode." = "Installa o aggiorna l’assistente amministratore per usare il risparmio energetico.";
+"Waiting for closed-display mode to be active." = "In attesa dell’attivazione della modalità schermo chiuso.";
+"Low Power Mode will turn on when the lid closes." = "Il risparmio energetico si attiverà quando chiudi il coperchio.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "In attesa dell’alimentazione a batteria. Abilita l’uso con alimentatore per includerlo.";
+"Updating Low Power Mode…" = "Aggiornamento del risparmio energetico…";
+"Low Power Mode is active." = "Risparmio energetico attivo.";

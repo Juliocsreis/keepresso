@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "Minimális ventilátorsebesség: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "A ventilátorvezérlés aktív, ezért a teszt csak az összes ventilátortartás végén érhető el.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Csak csukott fedélnél, aktív csukott kijelzős módban érvényes. A hő miatti rásegítés emelheti a minimumot; a fenti rásegítés és szüneteltetés beállításai függetlenek maradnak. A mód végén visszaadja a ventilátorvezérlést a rendszernek.";
+"Choose another use" = "Másik használati mód választása";
+"Also use while plugged in" = "Használat hálózati tápról is";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Alacsony töltöttségű módot használ csukott fedélnél, aktív csukott kijelzős módban. Alapból csak akkumulátorról. A fedél nyitásakor vagy a mód végén minden energia-beállítást visszaállít. Rendszergazdai segéd szükséges.";
+"Install or update the administrator helper to use Low Power Mode." = "Az alacsony töltöttségű módhoz telepítsd vagy frissítsd a rendszergazdai segédet.";
+"Waiting for closed-display mode to be active." = "Várakozás a csukott kijelzős mód bekapcsolására.";
+"Low Power Mode will turn on when the lid closes." = "Az alacsony töltöttségű mód a fedél becsukásakor kapcsol be.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Várakozás akkumulátoros üzemre. A tápegységhez engedélyezd a hálózati tápról való használatot is.";
+"Updating Low Power Mode…" = "Alacsony töltöttségű mód frissítése…";
+"Low Power Mode is active." = "Az alacsony töltöttségű mód aktív.";

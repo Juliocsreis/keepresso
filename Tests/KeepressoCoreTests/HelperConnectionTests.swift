@@ -17,6 +17,10 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
         lock.lock(); lowPowerCalls += 1; lock.unlock()
         reply(true)
     }
+    @objc func setAdapterLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void) {
+        lock.lock(); lowPowerCalls += 1; lock.unlock()
+        reply(true)
+    }
     private let lock = NSLock()
     private var pendingReply: (@Sendable (Bool) -> Void)?
 
@@ -217,6 +221,35 @@ private func blockingValue<Value: Sendable>(_ work: @escaping @Sendable () -> Va
     let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
     #expect(await blockingValue { !client.setLowPowerHold(true) })
     // A failed rendezvous must not pass as a successful version guard.
+    #expect(delegate.helper.pingCallCount == 1)
+    #expect(delegate.helper.lowPowerCallCount == 0)
+}
+
+@Test func adapterLowPowerHoldKeepsConnectionUntilBothProfilesRelease() async {
+    let delegate = AnonymousHelperListener()
+    let listener = NSXPCListener.anonymous()
+    listener.delegate = delegate; listener.resume()
+    defer { listener.invalidate(); delegate.stop() }
+    let endpoint = listener.endpoint
+    let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
+    #expect(await blockingValue { client.setLowPowerHold(true) })
+    #expect(await blockingValue { client.setAdapterLowPowerHold(true) })
+    #expect(await blockingValue { client.setLowPowerHold(false) })
+    #expect(delegate.activeConnections > 0)
+    #expect(await blockingValue { client.ping() })
+    #expect(await blockingValue { client.setAdapterLowPowerHold(false) })
+    #expect(await blockingValue { delegate.waitForNoConnections() })
+    #expect(delegate.helper.lowPowerCallCount == 4)
+}
+
+@Test func adapterLowPowerHoldDoesNotCallAnOlderDaemonsMissingVerb() async {
+    let delegate = AnonymousHelperListener(version: 11)
+    let listener = NSXPCListener.anonymous()
+    listener.delegate = delegate; listener.resume()
+    defer { listener.invalidate(); delegate.stop() }
+    let endpoint = listener.endpoint
+    let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
+    #expect(await blockingValue { !client.setAdapterLowPowerHold(true) })
     #expect(delegate.helper.pingCallCount == 1)
     #expect(delegate.helper.lowPowerCallCount == 0)
 }

@@ -81,7 +81,7 @@ targets:
         CFBundleName: Keepresso
         CFBundleDisplayName: Keepresso
         CFBundleShortVersionString: "1.27.0"
-        CFBundleVersion: "43"
+        CFBundleVersion: "44"
         LSUIElement: true            # menu-bar agent: no Dock icon
         LSMinimumSystemVersion: "14.0"
         # The shipped localizations (Localizable.strings under *.lproj); keep
@@ -95,6 +95,7 @@ targets:
             CFBundleURLSchemes: [keepresso]
         # Reading the joined Wi-Fi SSID (for Wi-Fi triggers) needs Location access.
         NSLocationWhenInUseUsageDescription: "Keepresso reads Wi-Fi network names for your triggers and to find the hotspot you choose for automatic fallback."
+        NSLocationUsageDescription: "Keepresso reads Wi-Fi network names for your triggers and to find the hotspot you choose for automatic fallback."
         # Listing paired Bluetooth devices (for Bluetooth triggers) is TCC-gated.
         NSBluetoothAlwaysUsageDescription: "Keepresso checks which of your paired Bluetooth devices are connected so it can keep your Mac awake while a chosen device (like headphones) is in use."
         # Reading calendar events (for the calendar trigger) needs full access.
@@ -109,6 +110,8 @@ targets:
     entitlements:
       path: Sources/Keepresso/Keepresso.entitlements
       properties:
+        # Location is restricted by Hardened Runtime even without App Sandbox.
+        com.apple.security.personal-information.location: true
         # Shared session state with the widget extension. Expanded at signing
         # so the Team ID stays out of the repo; both processes read the
         # expanded value back from their own signature at runtime
@@ -120,7 +123,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sh.gyorgy.keepresso
         MARKETING_VERSION: "1.27.0"
-        CURRENT_PROJECT_VERSION: "43"
+        CURRENT_PROJECT_VERSION: "44"
         SWIFT_VERSION: "5.9"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Bridges the Objective-C virtual-display wrapper (private CG API) to Swift.
@@ -200,7 +203,7 @@ targets:
         # to depend on, and a stale helper version only misleads crash/launchd
         # and BTM logs.
         CFBundleShortVersionString: "1.27.0"
-        CFBundleVersion: "43"
+        CFBundleVersion: "44"
     settings:
       base:
         PRODUCT_NAME: keepresso-helper
@@ -239,7 +242,7 @@ targets:
         CFBundleName: KeepressoWidget
         CFBundleDisplayName: Keepresso
         CFBundleShortVersionString: "1.27.0"
-        CFBundleVersion: "43"
+        CFBundleVersion: "44"
         # Same 15 localizations as the app; keep in sync with
         # tools/localization/gen_strings.py.
         CFBundleLocalizations: [en, de, es, fr, it, hu, pt-BR, tr, ru, ja, ko, pl, uk, zh-Hans, zh-Hant]
@@ -264,7 +267,7 @@ targets:
         # Keep in lockstep with the app target's versions on every release
         # bump (the release scripts read the app's, the first in this file).
         MARKETING_VERSION: "1.27.0"
-        CURRENT_PROJECT_VERSION: "43"
+        CURRENT_PROJECT_VERSION: "44"
         SWIFT_VERSION: "5.9"
         ENABLE_HARDENED_RUNTIME: true
         CODE_SIGN_STYLE: Automatic

@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "En düşük fan hızı: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "Fan kontrolü etkin. Tüm fan istekleri bitene kadar test kapalı kalır.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "Yalnızca kapak kapalı ve kapalı ekran modu etkinken uygulanır. Isı takviyesi alt sınırı yükseltebilir; yukarıdaki takviye ve duraklatma ayarları bağımsız kalır. Mod bittiğinde fan kontrolünü sisteme geri verir.";
+"Choose another use" = "Başka kullanım seç";
+"Also use while plugged in" = "Prize bağlıyken de kullan";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "Kapak kapalı ve kapalı ekran modu etkinken Düşük Güç Modunu kullanır. Varsayılan olarak yalnızca pilde çalışır. Kapak açıldığında veya mod sona erdiğinde güç ayarlarını geri yükler. Yönetici yardımcısı gerekir.";
+"Install or update the administrator helper to use Low Power Mode." = "Düşük Güç Modu için yönetici yardımcısını yükleyin veya güncelleyin.";
+"Waiting for closed-display mode to be active." = "Kapalı ekran modunun etkinleşmesi bekleniyor.";
+"Low Power Mode will turn on when the lid closes." = "Kapak kapanınca Düşük Güç Modu açılacak.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "Pil gücü bekleniyor. Güç adaptörünü dahil etmek için prize bağlı kullanımı açın.";
+"Updating Low Power Mode…" = "Düşük Güç Modu güncelleniyor…";
+"Low Power Mode is active." = "Düşük Güç Modu etkin.";

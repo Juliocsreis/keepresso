@@ -86,6 +86,7 @@ jobs:
           xcodebuild -exportArchive -archivePath build/Keepresso.xcarchive \
             -exportOptionsPlist build/ExportOptions.plist -exportPath build/export
           codesign --verify --deep --strict --verbose=2 "build/export/Keepresso.app"
+          python3 scripts/check-location-permission.py "build/export/Keepresso.app"
 
       - name: Package and notarize DMG
         env:

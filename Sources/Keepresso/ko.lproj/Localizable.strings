@@ -907,3 +907,12 @@
 "Minimum fan speed: %d%%" = "최소 팬 속도: %d%%";
 "Fan control is active, so the test stays off until all fan holds end." = "팬 제어가 활성화되어 있습니다. 모든 팬 제어 요청이 끝나야 테스트할 수 있습니다.";
 "Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends." = "덮개가 닫히고 닫힌 디스플레이 모드가 활성화된 경우에만 적용됩니다. 열에 따른 가속은 최소 속도를 높일 수 있으며, 위의 가속 및 일시 정지 설정은 독립적으로 유지됩니다. 모드가 끝나면 시스템에 팬 제어를 돌려줍니다.";
+"Choose another use" = "다른 용도 선택";
+"Also use while plugged in" = "전원 연결 중에도 사용";
+"Uses Low Power Mode with the lid closed and closed-display mode active. Battery only by default. Restores each power setting when the lid opens or the mode ends. Requires the administrator helper." = "덮개가 닫히고 닫힌 디스플레이 모드가 활성화되면 저전력 모드를 사용합니다. 기본적으로 배터리 사용 시에만 적용됩니다. 덮개를 열거나 모드가 끝나면 각 전원 설정을 복원합니다. 관리자 도우미가 필요합니다.";
+"Install or update the administrator helper to use Low Power Mode." = "저전력 모드를 사용하려면 관리자 도우미를 설치하거나 업데이트하세요.";
+"Waiting for closed-display mode to be active." = "닫힌 디스플레이 모드가 활성화되기를 기다리는 중입니다.";
+"Low Power Mode will turn on when the lid closes." = "덮개를 닫으면 저전력 모드가 켜집니다.";
+"Waiting for battery power. Enable plugged-in use to include the power adapter." = "배터리 전원을 기다리는 중입니다. 전원 어댑터도 포함하려면 전원 연결 중 사용을 켜세요.";
+"Updating Low Power Mode…" = "저전력 모드 업데이트 중…";
+"Low Power Mode is active." = "저전력 모드가 켜져 있습니다.";

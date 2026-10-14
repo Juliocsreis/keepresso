@@ -90,6 +90,8 @@ public enum HelperRestoreMarker: String, CaseIterable, Sendable {
     case keyboardLock = "keyboard-lock"
     /// Prior battery Low Power Mode, restored after the last connection releases.
     case batteryLowPower = "battery-low-power"
+    /// Adapter profile restore debt, kept independent from battery settings.
+    case adapterLowPower = "adapter-low-power"
 }
 
 /// Persistence seam for the restore markers. A marker may carry a small value
@@ -207,7 +209,7 @@ public final class HelperEngine: @unchecked Sendable {
     private var priorityHolders: [Int: Int] = [:]
     /// Clients holding the Keyboard Cleaner remap.
     private var keyboardHolders: Set<Int> = []
-    private var lowPowerHolders: Set<Int> = []
+    private var lowPowerHolders: [LowPowerProfile: Set<Int>] = [:]
     private let lowPower: BatteryLowPowerControlling
     /// Consecutive failed fan writes; past the cap the engine surrenders the
     /// hold instead of fighting the firmware forever.
@@ -278,7 +280,8 @@ public final class HelperEngine: @unchecked Sendable {
     /// Called once at daemon launch, before the listener accepts anyone.
     public func restoreAtLaunch() {
         let leftovers = state.markers()
-        if leftovers.contains(.batteryLowPower) { _ = restoreLowPower() }
+        if leftovers.contains(.batteryLowPower) { _ = restoreLowPower(profile: .battery) }
+        if leftovers.contains(.adapterLowPower) { _ = restoreLowPower(profile: .adapter) }
         if leftovers.contains(.sleepDisabled) {
             let ok = runner.run(
                 "/usr/bin/pmset", ["-a", "disablesleep", recordedSleepRestoreValue()])
@@ -483,38 +486,45 @@ public final class HelperEngine: @unchecked Sendable {
     public func setLowPowerHold(client: Int, holding: Bool) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return applyLowPowerUnion(client: client, holding: holding)
+        return applyLowPowerUnion(client: client, holding: holding, profile: .battery)
     }
 
-    private func applyLowPowerUnion(client: Int, holding: Bool) -> Bool {
+    public func setAdapterLowPowerHold(client: Int, holding: Bool) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return applyLowPowerUnion(client: client, holding: holding, profile: .adapter)
+    }
+
+    private func applyLowPowerUnion(client: Int, holding: Bool, profile: LowPowerProfile) -> Bool {
+        let marker: HelperRestoreMarker = profile == .battery ? .batteryLowPower : .adapterLowPower
         if holding {
-            if lowPowerHolders.contains(client) { return true }
-            if lowPowerHolders.isEmpty {
-                // Preserve any outstanding restore debt instead of snapshotting our own override.
-                if state.value(for: .batteryLowPower) == nil {
-                    guard let prior = lowPower.batteryMode(), (0...2).contains(prior) else { return false }
-                    state.set(.batteryLowPower, value: String(prior))
-                    // Never change a power setting without a durable restore value.
-                    guard state.value(for: .batteryLowPower) == String(prior) else { return false }
+            if lowPowerHolders[profile, default: []].contains(client) { return true }
+            if lowPowerHolders[profile, default: []].isEmpty {
+                // Preserve outstanding restore debt instead of snapshotting our override.
+                if state.value(for: marker) == nil {
+                    guard let prior = lowPower.mode(for: profile), (0...2).contains(prior) else { return false }
+                    state.set(marker, value: String(prior))
+                    guard state.value(for: marker) == String(prior) else { return false }
                 }
-                guard let value = state.value(for: .batteryLowPower),
+                guard let value = state.value(for: marker),
                       let prior = Int(value), (0...2).contains(prior),
-                      lowPower.setBatteryMode(1) else { return false }
+                      lowPower.setMode(1, for: profile) else { return false }
             }
-            lowPowerHolders.insert(client)
+            lowPowerHolders[profile, default: []].insert(client)
             return true
         }
-        lowPowerHolders.remove(client)
-        return !lowPowerHolders.isEmpty || restoreLowPower()
+        lowPowerHolders[profile]?.remove(client)
+        return !(lowPowerHolders[profile]?.isEmpty ?? true) || restoreLowPower(profile: profile)
     }
 
-    private func restoreLowPower() -> Bool {
-        guard let value = state.value(for: .batteryLowPower) else { return true }
+    private func restoreLowPower(profile: LowPowerProfile) -> Bool {
+        let marker: HelperRestoreMarker = profile == .battery ? .batteryLowPower : .adapterLowPower
+        guard let value = state.value(for: marker) else { return true }
         guard let prior = Int(value), (0...2).contains(prior) else { return false }
-        // If the user has changed the setting while held, respect that choice.
-        guard let current = lowPower.batteryMode() else { return false }
-        guard current != 1 || lowPower.setBatteryMode(prior) else { return false }
-        state.set(.batteryLowPower, value: nil)
+        // Respect a setting changed by the user while the profile was held.
+        guard let current = lowPower.mode(for: profile) else { return false }
+        guard current != 1 || lowPower.setMode(prior, for: profile) else { return false }
+        state.set(marker, value: nil)
         return true
     }
 
@@ -534,7 +544,7 @@ public final class HelperEngine: @unchecked Sendable {
         return applyFanUnion {
             if holding {
                 droppedFanClients.remove(client)
-                fanHolders[client] = max(30, min(percent, 100))
+                fanHolders[client] = ClosedLidFanFloor.clampedPercent(percent)
             } else {
                 fanHolders.removeValue(forKey: client)
             }
@@ -575,7 +585,9 @@ public final class HelperEngine: @unchecked Sendable {
         droppedFanClients.remove(client)
         _ = applyPriorityUnion { priorityHolders.removeValue(forKey: client) }
         _ = applyKeyboardUnion(client: client, holding: false)
-        _ = applyLowPowerUnion(client: client, holding: false)
+        for profile in LowPowerProfile.allCases {
+            _ = applyLowPowerUnion(client: client, holding: false, profile: profile)
+        }
     }
 
     /// Re-down `awdl0` while any hold is live: macOS re-raises the interface
@@ -636,7 +648,7 @@ public final class HelperEngine: @unchecked Sendable {
         defer { lock.unlock() }
         return sleepHolders.isEmpty && awdlHolders.isEmpty
             && fanHolders.isEmpty && priorityHolders.isEmpty
-            && keyboardHolders.isEmpty && lowPowerHolders.isEmpty
+            && keyboardHolders.isEmpty && lowPowerHolders.values.allSatisfy(\.isEmpty)
     }
 
     // MARK: - CLI symlink
