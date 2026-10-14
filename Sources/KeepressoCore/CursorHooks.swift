@@ -32,12 +32,15 @@ public enum CursorHooks {
     // commands the user's own approval settings meant to stop. Keepresso has
     // no business voting on permissions in either direction.
 
-    /// The events Keepresso installs, exactly the ones ``reduce(event:toolName:)``
-    /// maps. Every one is an observation step: its output cannot allow, deny,
-    /// or block anything.
+    /// The observation events Keepresso installs. The reducer also accepts
+    /// retired events while an older config is being migrated.
+    ///
+    /// Cursor CLI can crash with "WritableIterable is closed" when a turn
+    /// finishes while `afterAgentThought` reports activity. The other lifecycle
+    /// events keep reporting activity, so do not restore this event during repair.
     public static let installedEvents = [
         "sessionStart", "beforeSubmitPrompt", "postToolUse", "afterShellExecution",
-        "afterFileEdit", "afterAgentThought", "afterAgentResponse", "subagentStop",
+        "afterFileEdit", "afterAgentResponse", "subagentStop",
         "preCompact", "stop", "sessionEnd",
     ]
 

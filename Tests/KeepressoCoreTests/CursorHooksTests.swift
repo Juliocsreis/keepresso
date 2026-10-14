@@ -345,6 +345,68 @@ private func temporaryDirectory() -> URL {
     #expect(CursorHooks.hookInstallState(of: twice, cliPath: "/Apps/K/keepresso") == .installed)
 }
 
+@Test func cursorInstallRetiresThoughtHookAndPreservesOtherHooks() throws {
+    let cliPath = "/Apps/K/keepresso"
+    for keepForeignThought in [false, true] {
+        let fresh = try CursorHooks.installHooks(into: nil, cliPath: cliPath)
+        var original = try #require(try JSONSerialization.jsonObject(with: fresh) as? [String: Any])
+        var hooks = try #require(original["hooks"] as? [String: Any])
+        #expect(hooks["afterAgentThought"] == nil)
+        // A previous release installed this observation hook. Repair must
+        // retire our entry, including when a user's own hook shares the event.
+        var thoughts: [[String: Any]] = [[
+            "command": CursorHooks.hookCommand(event: "afterAgentThought", cliPath: cliPath),
+            "timeout": 5,
+        ]]
+        if keepForeignThought {
+            thoughts.append(["command": "/usr/local/bin/thought-observer", "timeout": 12])
+        }
+        hooks["afterAgentThought"] = thoughts
+        var stop = try #require(hooks["stop"] as? [[String: Any]])
+        stop.append(["command": "/usr/local/bin/stop-observer", "timeout": 9])
+        hooks["stop"] = stop
+        hooks["beforeShellExecution"] = [["command": "/usr/local/bin/guard", "failClosed": true]]
+        original["hooks"] = hooks
+        let existing = try JSONSerialization.data(withJSONObject: original)
+        #expect(CursorHooks.inspect(existing, cliPath: cliPath).orphaned == ["afterAgentThought"])
+        guard case .needsRepair = CursorHooks.hookInstallState(of: existing, cliPath: cliPath) else {
+            Issue.record("a retired thought hook must trigger automatic repair")
+            continue
+        }
+
+        let repaired = try CursorHooks.installHooks(into: existing, cliPath: cliPath)
+        let root = try #require(try JSONSerialization.jsonObject(with: repaired) as? [String: Any])
+        let installed = try #require(root["hooks"] as? [String: Any])
+        if keepForeignThought {
+            let kept = try #require(installed["afterAgentThought"] as? [[String: Any]])
+            #expect(kept.count == 1)
+            #expect(kept[0]["command"] as? String == "/usr/local/bin/thought-observer")
+            #expect(kept[0]["timeout"] as? Int == 12)
+        } else {
+            #expect(installed["afterAgentThought"] == nil)
+        }
+        for event in CursorHooks.installedEvents {
+            let entries = try #require(installed[event] as? [[String: Any]])
+            #expect(entries.filter { CursorHooks.isKeepresso($0) }.count == 1)
+        }
+        let stopEntries = try #require(installed["stop"] as? [[String: Any]])
+        #expect(stopEntries.count == 2)
+        let foreignStop = try #require(stopEntries.first {
+            $0["command"] as? String == "/usr/local/bin/stop-observer"
+        })
+        #expect(foreignStop["timeout"] as? Int == 9)
+        let guardEntries = try #require(installed["beforeShellExecution"] as? [[String: Any]])
+        #expect(guardEntries.count == 1)
+        #expect(guardEntries[0]["command"] as? String == "/usr/local/bin/guard")
+        #expect(guardEntries[0]["failClosed"] as? Bool == true)
+        let report = CursorHooks.inspect(repaired, cliPath: cliPath)
+        #expect(report.isHealthy)
+        #expect(report.healthy == Set(CursorHooks.installedEvents))
+        #expect(CursorHooks.hookInstallState(of: repaired, cliPath: cliPath) == .installed)
+        #expect(try CursorHooks.installHooks(into: repaired, cliPath: cliPath) == repaired)
+    }
+}
+
 @Test func removeStripsOnlyOurEntries() throws {
     let mine = Data(#"{"version":1,"hooks":{"stop":[{"command":"/usr/local/bin/mine"}]}}"#.utf8)
     let installed = try CursorHooks.installHooks(into: mine, cliPath: "/Apps/K/keepresso")
