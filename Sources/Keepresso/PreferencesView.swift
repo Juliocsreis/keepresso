@@ -596,6 +596,7 @@ private struct GeneralTab: View {
                 thermalSection
             }
             closedDisplaySection
+            HotspotPreferencesSection(model: model)
             Section {
                 HStack {
                     Button("Export Settings\u{2026}") { exportSettings() }
@@ -799,6 +800,32 @@ private struct GeneralTab: View {
                     ThermalHelperLockedRow(model: model)
                 }
             }
+            if model.machineHasFans {
+                Toggle("Minimum fan speed with the lid closed", isOn: Binding(
+                    get: { model.closedLidMinimumFanPercent != nil },
+                    set: { model.closedLidMinimumFanPercent = $0 ? ClosedLidFanFloor.defaultPercent : nil }
+                ))
+                .disabled(!model.helperInstalled || model.helper.daemonOutdated)
+                if let percent = model.closedLidMinimumFanPercent {
+                    LabeledContent("Minimum") {
+                        FanBoostSlider(percent: Binding(
+                            get: { percent }, set: { model.closedLidMinimumFanPercent = $0 }
+                        ))
+                    }
+                    Text("Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if model.fanFloor.failed {
+                        Label("Fan minimum unavailable. Thermal protection remains unchanged.", systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.orange)
+                    } else if let active = model.fanFloor.holdingPercent {
+                        Label(L("Minimum fan speed: %d%%", active), systemImage: "fan")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if model.thermalSafety == nil && !model.helperInstalled {
+                    ThermalHelperLockedRow(model: model)
+                }
+            }
         } header: {
             sectionHeader("Thermal", info: L("A safety net for a Mac left running with the lid closed, slid into a bag with a session still holding it awake. It acts only in that trapped state: lid shut, with \u{201C}Keep awake with the lid closed\u{201D} overriding sleep. Watch macOS's own thermal pressure (works everywhere, \u{201C}Serious\u{201D} is where throttling bites) or specific temperature sensors, and if the reading stays over the threshold for the chosen time, Keepresso escalates: first, optionally, it boosts the fans (never below what the system chose, needs the administrator helper), and if it stays hot for the same time again, it pauses the session and switches the sleep override off, so the Mac can finally sleep and cool, telling you why in a notification. Opening the lid, or readings recovering, undoes everything: fan control returns to the system, the override comes back, and the session resumes. Die sensors on modern Macs routinely run at 90-100 \u{00B0}C under load, so thresholds around 95-100 \u{00B0}C are sensible."))
         } footer: {
@@ -879,6 +906,21 @@ private struct GeneralTab: View {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
+            }
+            if model.machineHasBattery {
+                Toggle("Low Power Mode while the lid is closed", isOn: Binding(
+                    get: { model.closedLidLowPower }, set: { model.closedLidLowPower = $0 }
+                ))
+                .disabled(!model.helperInstalled)
+                Text("Uses Low Power Mode on battery with the lid closed. Restores your previous setting when the lid opens or closed-display mode ends. Requires the administrator helper.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if model.closedLidLowPowerController.failed {
+                    Label("Could not update Low Power Mode. Keepresso will retry.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange)
+                } else if model.closedLidLowPowerController.holding {
+                    Label("Low Power Mode is active on battery.", systemImage: "leaf")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Text("Turn this on and then quit, and Keepresso asks whether to turn it off first.")
                 .font(.caption)

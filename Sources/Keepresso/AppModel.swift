@@ -255,6 +255,69 @@ final class AppModel {
         }
     }
 
+    // MARK: - Connection fallback and closed-lid power
+
+    private let hotspotCredentials = KeychainHotspotCredentials()
+    @ObservationIgnored private lazy var hotspotNetwork = CoreWLANHotspotNetworking()
+    @ObservationIgnored private(set) lazy var hotspot: HotspotFallbackController = {
+        let controller = HotspotFallbackController(network: hotspotNetwork, credentials: hotspotCredentials)
+        controller.config = settings.hotspotFallback
+        controller.onConnected = { [weak self] ssid in
+            self?.notifier.notify(title: L("Connected to hotspot"), body: ssid, sound: false)
+        }
+        return controller
+    }()
+    @ObservationIgnored private(set) lazy var closedLidLowPowerController = ClosedLidLowPowerController(helper: helperClient)
+    private let connectivityLid = IORegistryLidState()
+    private let connectivityPower = IOKitPowerSourceMonitor()
+
+    var hotspotConfig: HotspotFallbackConfig {
+        get { settings.hotspotFallback }
+        set {
+            settings.hotspotFallback = newValue.normalized()
+            hotspot.config = settings.hotspotFallback
+            if newValue.enabled && newValue.notifyOnConnect { notifier.requestAuthorization() }
+            persist()
+        }
+    }
+    var closedLidLowPower: Bool {
+        get { settings.closedLidLowPower }
+        set { settings.closedLidLowPower = newValue; persist(); connectivityTick() }
+    }
+    func saveHotspotPassword(_ password: String, ssid: String) async throws {
+        try await Task.detached { [hotspotCredentials] in
+            try hotspotCredentials.save(password: password, for: ssid)
+        }.value
+        hotspot.retryNow()
+    }
+    func hasHotspotPassword(ssid: String) async -> Bool {
+        await Task.detached { [hotspotCredentials] in
+            ((try? hotspotCredentials.password(for: ssid)) ?? "").isEmpty == false
+        }.value
+    }
+    func forgetHotspotPassword(ssid: String) async throws {
+        try await Task.detached { [hotspotCredentials] in
+            try hotspotCredentials.removePassword(for: ssid)
+        }.value
+        if settings.hotspotFallback.ssid == ssid {
+            var config = hotspotConfig; config.enabled = false; hotspotConfig = config
+        }
+    }
+    func connectivityTick() {
+        let useHotspot = settings.hotspotFallback.enabled
+        let useLowPower = settings.closedLidLowPower
+        guard useHotspot || useLowPower || closedLidLowPowerController.holding || closedLidLowPowerController.busy else { return }
+        let power = connectivityPower.current
+        let lidClosed = connectivityLid.isClosed() == true
+        let closed = closedDisplay.isEnabled == true
+        if useHotspot {
+            hotspot.tick(conditions: HotspotConditions(sessionActive: session.isActive, lidClosed: lidClosed,
+                closedDisplayActive: closed, onBattery: power.provider == .battery, batteryPercent: power.percentage))
+        }
+        closedLidLowPowerController.tick(enabled: useLowPower, lidClosed: lidClosed, closedDisplayActive: closed,
+            onBattery: power.provider == .battery, helperAvailable: helper.isInstalled)
+    }
+
     // MARK: - Awake explainer
 
     /// Shared IOKit lister: Activity reads uncached, the menu "held by…" line
@@ -1226,8 +1289,35 @@ final class AppModel {
     /// boost UI entirely). `nil` fan counts (SMC unreachable) read as fanless.
     @ObservationIgnored let machineHasFans = (SMCFanInfo().fanCount() ?? 0) > 0
 
-    /// The thermal safety configuration, or nil for off. Setting it re-derives
-    /// the guard and the session's pause gate, mirroring the battery setters.
+    /// A separate XPC connection makes the fan floor its own daemon holder.
+    /// Heat boosts and fan diagnostics never release or overwrite this claim.
+    @ObservationIgnored private(set) lazy var fanFloor = ClosedLidFanFloorController(helper: XPCHelperClient())
+    @ObservationIgnored private var fanFloorArming = ThermalArming()
+    @ObservationIgnored private var fanFloorCancelInFlight = false
+    var closedLidMinimumFanPercent: Int? {
+        get { settings.closedLidMinimumFanPercent }
+        set {
+            settings.closedLidMinimumFanPercent = newValue.map(ClosedLidFanFloor.clampedPercent)
+            persist()
+        }
+    }
+    private func fanFloorTick() {
+        guard settings.closedLidMinimumFanPercent != nil || fanFloor.requestedPercent != nil || fanFloor.busy else { return }
+        let armed = fanFloorArming.update(lidClosed: connectivityLid.isClosed(), sleepOverrideActive: closedDisplay.isEnabled)
+        let supported = machineHasFans && helperInstalled && !helper.daemonOutdated
+        if armed, supported, settings.closedLidMinimumFanPercent != nil, fanDryRun.isRunning {
+            guard !fanFloorCancelInFlight else { return }
+            fanFloorCancelInFlight = true
+            Task { [weak self] in
+                await self?.fanDryRun.cancelAndWait()
+                self?.fanFloorCancelInFlight = false
+            }
+            return
+        }
+        fanFloor.tick(percent: settings.closedLidMinimumFanPercent, armed: armed, supported: supported)
+    }
+
+    /// Setting this re-derives the existing guard and session pause gate.
     var thermalSafety: ThermalSafetyConfig? {
         get { settings.thermalSafety }
         set {
@@ -1263,11 +1353,12 @@ final class AppModel {
         // stage off; while it matters (boost configured), keep the version
         // watch armed so the verdict converges (single-flight, no-op while
         // one is already running).
-        if settings.thermalSafety?.fanBoostPercent != nil,
+        if settings.thermalSafety?.fanBoostPercent != nil || settings.closedLidMinimumFanPercent != nil,
            helperInstalled, helper.daemonOutdated {
             helper.watchDaemonUpdate()
         }
         fanHoldWatchTick()
+        fanFloorTick()
     }
 
     /// Poll the daemon's surrendered-boost flag every few seconds while the
@@ -1474,7 +1565,7 @@ final class AppModel {
         if helper.awaitingApproval { return .awaitingApproval }
         if !helperInstalled { return .needsHelper }
         if helper.daemonOutdated { return .helperUpdating }
-        if fanBoostActivePercent != nil { return .boostActive }
+        if fanBoostActivePercent != nil || fanFloor.requestedPercent != nil || fanFloor.busy { return .boostActive }
         return .ready
     }
 
@@ -1735,6 +1826,7 @@ final class AppModel {
         session.stop()
         revokeLeases()
         settings = newSettings
+        hotspot.config = newSettings.hotspotFallback
         session.options = newSettings.options
         session.reminderAfter = newSettings.reminderAfter
         session.reminderRepeats = newSettings.reminderRepeats
@@ -2568,6 +2660,8 @@ final class AppModel {
     func removeHelper() {
         Task {
             await fanDryRun.cancelAndWait()
+            await fanFloor.stopAndWait()
+            await closedLidLowPowerController.stopAndWait()
             await closedDisplayAuto.stopIfHolding()
             await awdl.stop()
             await helper.uninstall()

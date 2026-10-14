@@ -3,6 +3,35 @@
 All notable changes to Keepresso are documented here, grouped by release.
 Versions follow [Semantic Versioning](https://semver.org).
 
+## [1.27.0] - 2026-10-14
+
+### Added
+
+- Opt-in hotspot fallback in Preferences > General, with a selected secure
+  network, Keychain password storage, session or closed-display scope, grace
+  and retry controls, a battery cutoff, and connection notifications.
+- Optional battery Low Power Mode while closed-display mode is active with the
+  lid shut. The helper restores the previous setting on release or disconnect
+  and journals it for recovery after a daemon restart.
+- Independent, opt-in minimum fan speed during closed-display mode on supported
+  Macs. Heat boosts can raise the floor, and fanless Macs retain their existing
+  thermal pause behavior. Existing thermal configuration is preserved.
+
+### Changed
+
+- Share branded agent connection rows between onboarding and Preferences.
+  Include Codex's hook approval reminder in both. Bundle all 36 vector brand
+  image sets from tokenstat for current and future integrations.
+
+### Fixed
+
+- Use a supported three-second timeout for Codex SessionEnd and automatically
+  repair excessive or malformed Keepresso hook timeouts
+  ([#28](https://github.com/gyorgysh/keepresso/issues/28)). Thanks to
+  [@emircansancar](https://github.com/emircansancar) for the report.
+- Retire Cursor's afterAgentThought hook during automatic repair while keeping
+  user-owned hooks and the remaining activity events.
+
 ## [1.26.0] - 2026-10-04
 
 Theme: make the menu your own, while keeping the familiar default experience.

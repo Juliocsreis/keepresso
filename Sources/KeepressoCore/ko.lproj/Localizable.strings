@@ -268,3 +268,8 @@
 "on battery at %d%%" = "배터리 사용 시 %d%%";
 "Resumed, battery recovered" = "재개됨, 배터리 회복됨";
 "Resumed, temperature recovered" = "재개됨, 온도 회복됨";
+"Save the hotspot password first." = "먼저 핫스팟 암호를 저장하세요.";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "핫스팟을 찾을 수 없습니다. 휴대폰에서 개인용 핫스팟을 켜세요.";
+"Allow Location access to find Wi-Fi networks." = "Wi-Fi 네트워크를 찾으려면 위치 접근을 허용하세요.";
+"A network connection is already available." = "이미 네트워크 연결을 사용할 수 있습니다.";
+"Turn on Wi-Fi to connect to the hotspot." = "핫스팟에 연결하려면 Wi-Fi를 켜세요.";

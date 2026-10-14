@@ -469,7 +469,7 @@ struct WelcomeView: View {
             .disabled(model.closedDisplayAutoBusy)
         }
         .padding(8)
-        .glassCard(cornerRadius: 8, tint: Color.keepressoBrew.opacity(0.14))
+        .glassCard(cornerRadius: 10, tint: Color.keepressoBrew.opacity(0.04))
     }
 
     /// The two safety nets as one switch: pause on low battery, and the
@@ -664,7 +664,7 @@ struct WelcomeView: View {
             }
         }
         .padding(8)
-        .glassCard(cornerRadius: 8, tint: Color.keepressoBrew.opacity(0.14))
+        .glassCard(cornerRadius: 10, tint: Color.keepressoBrew.opacity(0.04))
     }
 
     /// Offered when the agentic use case is picked: connect the coding tools on
@@ -694,36 +694,11 @@ struct WelcomeView: View {
                 Spacer(minLength: 8)
             }
             ForEach(model.agentSetupTools, id: \.self) { tool in
-                HStack(spacing: 8) {
-                    Text(verbatim: tool.displayName)
-                        .font(type.caption)
-                    Spacer(minLength: 8)
-                    agentToolControl(tool)
-                }
+                AgentHookConnectionRow(model: model, tool: tool, compact: true)
             }
         }
         .padding(8)
-        .glassCard(cornerRadius: 8, tint: Color.keepressoBrew.opacity(0.14))
-    }
-
-    /// One tool's state in the callout, the same three-state shape the
-    /// Preferences rows use, trimmed to what fits a setup card.
-    @ViewBuilder
-    private func agentToolControl(_ tool: AgentTool) -> some View {
-        switch model.hookState(of: tool) {
-        case .installed:
-            Label("Installed", systemImage: "checkmark.seal.fill")
-                .font(type.caption)
-                .foregroundStyle(.green)
-        case .needsRepair:
-            Button("Repair") { model.connectAgentTool(tool) }
-        case .notInstalled:
-            Button("Connect") { model.connectAgentTool(tool) }
-        case .unreadable:
-            Label("Couldn't be read", systemImage: "exclamationmark.triangle")
-                .font(type.caption)
-                .foregroundStyle(.orange)
-        }
+        .glassCard(cornerRadius: 10, tint: Color.keepressoBrew.opacity(0.04))
     }
 
     /// Act on a picked use case: the manual opt-out turns trigger gating off (so

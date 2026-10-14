@@ -88,6 +88,8 @@ public enum HelperRestoreMarker: String, CaseIterable, Sendable {
     /// the snapshotted `UserKeyMapping`. The file contents are the JSON of
     /// that snapshot (empty-entries JSON is "no remaps", not a missing marker).
     case keyboardLock = "keyboard-lock"
+    /// Prior battery Low Power Mode, restored after the last connection releases.
+    case batteryLowPower = "battery-low-power"
 }
 
 /// Persistence seam for the restore markers. A marker may carry a small value
@@ -205,6 +207,8 @@ public final class HelperEngine: @unchecked Sendable {
     private var priorityHolders: [Int: Int] = [:]
     /// Clients holding the Keyboard Cleaner remap.
     private var keyboardHolders: Set<Int> = []
+    private var lowPowerHolders: Set<Int> = []
+    private let lowPower: BatteryLowPowerControlling
     /// Consecutive failed fan writes; past the cap the engine surrenders the
     /// hold instead of fighting the firmware forever.
     private var fanFailureStreak = 0
@@ -233,13 +237,15 @@ public final class HelperEngine: @unchecked Sendable {
         state: HelperRestoreStatePersisting,
         fans: FanControlling = NullFanControl(),
         keyboard: KeyboardRemapping = HidutilKeyboardRemapper(),
-        sleepDisabledReader: @escaping () -> Bool? = { nil }
+        sleepDisabledReader: @escaping () -> Bool? = { nil },
+        lowPower: BatteryLowPowerControlling = NullBatteryLowPowerControl()
     ) {
         self.runner = runner
         self.state = state
         self.fans = fans
         self.keyboard = keyboard
         self.sleepDisabledReader = sleepDisabledReader
+        self.lowPower = lowPower
     }
 
     /// Real reader: `pmset -g` output through the same pure parser the app's
@@ -269,6 +275,7 @@ public final class HelperEngine: @unchecked Sendable {
     /// Called once at daemon launch, before the listener accepts anyone.
     public func restoreAtLaunch() {
         let leftovers = state.markers()
+        if leftovers.contains(.batteryLowPower) { _ = restoreLowPower() }
         if leftovers.contains(.sleepDisabled) {
             let ok = runner.run(
                 "/usr/bin/pmset", ["-a", "disablesleep", recordedSleepRestoreValue()])
@@ -470,6 +477,44 @@ public final class HelperEngine: @unchecked Sendable {
         return applySleepUnion(client: client, holding: holding)
     }
 
+    public func setLowPowerHold(client: Int, holding: Bool) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return applyLowPowerUnion(client: client, holding: holding)
+    }
+
+    private func applyLowPowerUnion(client: Int, holding: Bool) -> Bool {
+        if holding {
+            if lowPowerHolders.contains(client) { return true }
+            if lowPowerHolders.isEmpty {
+                // Preserve any outstanding restore debt instead of snapshotting our own override.
+                if state.value(for: .batteryLowPower) == nil {
+                    guard let prior = lowPower.batteryMode(), (0...2).contains(prior) else { return false }
+                    state.set(.batteryLowPower, value: String(prior))
+                    // Never change a power setting without a durable restore value.
+                    guard state.value(for: .batteryLowPower) == String(prior) else { return false }
+                }
+                guard let value = state.value(for: .batteryLowPower),
+                      let prior = Int(value), (0...2).contains(prior),
+                      lowPower.setBatteryMode(1) else { return false }
+            }
+            lowPowerHolders.insert(client)
+            return true
+        }
+        lowPowerHolders.remove(client)
+        return !lowPowerHolders.isEmpty || restoreLowPower()
+    }
+
+    private func restoreLowPower() -> Bool {
+        guard let value = state.value(for: .batteryLowPower) else { return true }
+        guard let prior = Int(value), (0...2).contains(prior) else { return false }
+        // If the user has changed the setting while held, respect that choice.
+        guard let current = lowPower.batteryMode() else { return false }
+        guard current != 1 || lowPower.setBatteryMode(prior) else { return false }
+        state.set(.batteryLowPower, value: nil)
+        return true
+    }
+
     /// Take or release `client`'s hold on `awdl0 down`.
     public func setAWDLHold(client: Int, holding: Bool) -> Bool {
         lock.lock()
@@ -525,6 +570,7 @@ public final class HelperEngine: @unchecked Sendable {
         _ = applyFanUnion { fanHolders.removeValue(forKey: client) }
         _ = applyPriorityUnion { priorityHolders.removeValue(forKey: client) }
         _ = applyKeyboardUnion(client: client, holding: false)
+        _ = applyLowPowerUnion(client: client, holding: false)
     }
 
     /// Re-down `awdl0` while any hold is live: macOS re-raises the interface
@@ -584,7 +630,7 @@ public final class HelperEngine: @unchecked Sendable {
         defer { lock.unlock() }
         return sleepHolders.isEmpty && awdlHolders.isEmpty
             && fanHolders.isEmpty && priorityHolders.isEmpty
-            && keyboardHolders.isEmpty
+            && keyboardHolders.isEmpty && lowPowerHolders.isEmpty
     }
 
     // MARK: - CLI symlink

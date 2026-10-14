@@ -268,3 +268,8 @@
 "on battery at %d%%" = "pilde, %d%% seviyesinde";
 "Resumed, battery recovered" = "Devam edildi, pil toparlandı";
 "Resumed, temperature recovered" = "Devam edildi, sıcaklık normale döndü";
+"Save the hotspot password first." = "Önce erişim noktası parolasını kaydedin.";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "Erişim noktası bulunamadı. Telefonunuzda kişisel erişim noktasını açın.";
+"Allow Location access to find Wi-Fi networks." = "Wi-Fi ağlarını bulmak için konum erişimine izin verin.";
+"A network connection is already available." = "Zaten bir ağ bağlantısı var.";
+"Turn on Wi-Fi to connect to the hotspot." = "Erişim noktasına bağlanmak için Wi-Fi’yi açın.";

@@ -268,3 +268,8 @@
 "on battery at %d%%" = "na baterii przy %d%%";
 "Resumed, battery recovered" = "Wznowiono, poziom baterii w normie";
 "Resumed, temperature recovered" = "Wznowiono, temperatura w normie";
+"Save the hotspot password first." = "Najpierw zapisz hasło hotspotu.";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "Nie znaleziono hotspotu. Włącz hotspot osobisty w telefonie.";
+"Allow Location access to find Wi-Fi networks." = "Zezwól na dostęp do lokalizacji, aby znaleźć sieci Wi-Fi.";
+"A network connection is already available." = "Połączenie sieciowe jest już dostępne.";
+"Turn on Wi-Fi to connect to the hotspot." = "Włącz Wi-Fi, aby połączyć się z hotspotem.";

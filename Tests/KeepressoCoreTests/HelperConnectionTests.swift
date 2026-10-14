@@ -2,11 +2,19 @@ import Foundation
 import Testing
 @testable import KeepressoCore
 
-/// The three harmless selectors used by the anonymous test endpoint. The
+/// The harmless selectors used by the anonymous test endpoint. The
 /// exported object intentionally implements only these; calling any other
 /// HelperXPCProtocol verb would raise.
 private final class OverlappingHelper: NSObject, @unchecked Sendable {
     let slowCallStarted = DispatchSemaphore(value: 0)
+    let version: Int
+    private var lowPowerCalls = 0
+    init(version: Int = HelperService.protocolVersion) { self.version = version }
+    var lowPowerCallCount: Int { lock.lock(); defer { lock.unlock() }; return lowPowerCalls }
+    @objc func setLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void) {
+        lock.lock(); lowPowerCalls += 1; lock.unlock()
+        reply(true)
+    }
     private let lock = NSLock()
     private var pendingReply: (@Sendable (Bool) -> Void)?
 
@@ -22,7 +30,7 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
     }
 
     @objc func ping(reply: @escaping @Sendable (Int) -> Void) {
-        reply(HelperService.protocolVersion)
+        reply(version)
     }
 
     /// Generous on purpose: on a 3-core CI runner under full-suite parallel
@@ -43,7 +51,13 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
 }
 
 private final class AnonymousHelperListener: NSObject, NSXPCListenerDelegate, @unchecked Sendable {
-    let helper = OverlappingHelper()
+    let helper: OverlappingHelper
+    init(version: Int = HelperService.protocolVersion) { helper = OverlappingHelper(version: version) }
+    var activeConnections: Int { lock.lock(); defer { lock.unlock() }; return connections.count }
+    func waitForNoConnections() -> Bool {
+        for _ in 0..<200 { if activeConnections == 0 { return true }; Thread.sleep(forTimeInterval: 0.01) }
+        return false
+    }
     let disconnected = DispatchSemaphore(value: 0)
 
     func waitForDisconnect() -> Bool {
@@ -55,7 +69,13 @@ private final class AnonymousHelperListener: NSObject, NSXPCListenerDelegate, @u
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         connection.exportedInterface = NSXPCInterface(with: HelperXPCProtocol.self)
         connection.exportedObject = helper
-        connection.invalidationHandler = { [weak self] in self?.disconnected.signal() }
+        connection.invalidationHandler = { [weak self, weak connection] in
+            guard let self else { return }
+            self.lock.lock()
+            self.connections.removeAll { $0 === connection }
+            self.lock.unlock()
+            self.disconnected.signal()
+        }
         lock.lock()
         connections.append(connection)
         lock.unlock()
@@ -160,4 +180,29 @@ private let testCallTimeout: TimeInterval = 30
     #expect(client.setSleepHold(false))
     // No further ping should be needed to let the old daemon retire.
     #expect(delegate.waitForDisconnect())
+}
+
+@Test func lowPowerHoldKeepsItsConnectionUntilReleased() {
+    let delegate = AnonymousHelperListener()
+    let listener = NSXPCListener.anonymous()
+    listener.delegate = delegate; listener.resume()
+    defer { listener.invalidate(); delegate.stop() }
+    let endpoint = listener.endpoint
+    let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
+    #expect(client.setLowPowerHold(true))
+    #expect(client.ping())
+    #expect(delegate.activeConnections > 0)
+    #expect(client.setLowPowerHold(false))
+    #expect(delegate.waitForNoConnections())
+    #expect(delegate.helper.lowPowerCallCount == 2)
+}
+@Test func lowPowerHoldDoesNotCallAnOlderDaemonsMissingVerb() {
+    let delegate = AnonymousHelperListener(version: 9)
+    let listener = NSXPCListener.anonymous()
+    listener.delegate = delegate; listener.resume()
+    defer { listener.invalidate(); delegate.stop() }
+    let endpoint = listener.endpoint
+    let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
+    #expect(!client.setLowPowerHold(true))
+    #expect(delegate.helper.lowPowerCallCount == 0)
 }

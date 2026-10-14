@@ -268,3 +268,8 @@
 "on battery at %d%%" = "使用电池且电量为 %d%% 时";
 "Resumed, battery recovered" = "已恢复，电量已恢复";
 "Resumed, temperature recovered" = "已恢复，温度已恢复";
+"Save the hotspot password first." = "请先保存热点密码。";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "未找到热点。请在手机上开启个人热点。";
+"Allow Location access to find Wi-Fi networks." = "允许位置访问以查找 Wi-Fi 网络。";
+"A network connection is already available." = "已有可用的网络连接。";
+"Turn on Wi-Fi to connect to the hotspot." = "打开 Wi-Fi 以连接热点。";

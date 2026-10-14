@@ -57,6 +57,8 @@ SOURCE_COVERAGE = [
         "APP",
         APP,
         [
+            "Sources/Keepresso/HotspotPreferencesSection.swift",
+            "Sources/Keepresso/AgentHookConnectionRow.swift",
             "Sources/Keepresso/KeyboardCleanerView.swift",
             "Sources/Keepresso/WifiAssistantView.swift",
             "Sources/Keepresso/HelperSetupView.swift",

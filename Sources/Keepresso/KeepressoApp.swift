@@ -182,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.thermalAvailabilityTick()
             self?.model.fireAgentIdleHookIfNeeded()
             self?.model.automationSyncTick()
+            self?.model.connectivityTick()
             self?.model.pulseMenuPanelIfVisible()
         }
     )

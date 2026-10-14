@@ -9,6 +9,7 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
     private(set) var calls: [String] = []
     var pingSucceeds = true
     var holdSucceeds = true
+    var fanDropped = false
 
     func ping() -> Bool {
         record("ping")
@@ -47,7 +48,7 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
 
     func fanHoldDropped() -> Bool? {
         record("fanHoldDropped")
-        return false
+        return fanDropped
     }
 
     func sleepNow() -> Bool {
@@ -62,6 +63,11 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
 
     func flushDNS() -> Bool {
         record("flushDNS")
+        return holdSucceeds
+    }
+
+    func setLowPowerHold(_ holding: Bool) -> Bool {
+        record("setLowPowerHold(\(holding))")
         return holdSucceeds
     }
 
@@ -269,4 +275,70 @@ private final class LockedFlag: @unchecked Sendable {
         get { lock.lock(); defer { lock.unlock() }; return stored }
         set { lock.lock(); stored = newValue; lock.unlock() }
     }
+}
+
+@Test @MainActor func closedLidLowPowerRestoresWhenItsConditionsEnd() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true)
+    #expect(helper.calls.isEmpty)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.holding)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: false, helperAvailable: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.holding)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}
+
+@Test @MainActor func closedLidFanFloorIsInactiveOnFanlessDevicesAndReleasesOnOpening() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidFanFloorController(helper: helper)
+    controller.tick(percent: 50, armed: true, supported: false)
+    #expect(helper.calls.isEmpty)
+    controller.tick(percent: 50, armed: false, supported: true)
+    #expect(helper.calls.isEmpty)
+    controller.tick(percent: 50, armed: true, supported: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.holdingPercent == 50)
+    controller.tick(percent: 50, armed: false, supported: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.holdingPercent == nil)
+    #expect(helper.calls == ["setFanHold(true, 50)", "setFanHold(false, 0)"])
+}
+@Test func closedLidFanFloorNeverChangesExistingThermalConfiguration() throws {
+    let old = try JSONDecoder().decode(KeepressoSettings.self, from: Data(#"{"thermalSafety":{"sustainSeconds":60,"fanBoostPercent":80,"stopBrewing":true}}"#.utf8))
+    #expect(old.closedLidMinimumFanPercent == nil)
+    var enabled = old; enabled.closedLidMinimumFanPercent = 50
+    #expect(enabled.thermalSafety == old.thermalSafety)
+    #expect(try JSONDecoder().decode(KeepressoSettings.self, from: JSONEncoder().encode(enabled)) == enabled)
+    #expect(ClosedLidFanFloor.requestedPercent(500, armed: true, supported: true) == 100)
+    #expect(ClosedLidFanFloor.requestedPercent(50, armed: true, supported: false) == nil)
+}
+
+@Test @MainActor func fanFloorDoesNotFightFirmwareThatDroppedTheHold() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidFanFloorController(helper: helper)
+    let now = Date()
+    controller.tick(percent: 50, armed: true, supported: true, now: now)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    helper.fanDropped = true
+    controller.tick(percent: 50, armed: true, supported: true, now: now.addingTimeInterval(3))
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.suspended)
+    controller.tick(percent: 50, armed: true, supported: true, now: now.addingTimeInterval(4))
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(controller.requestedPercent == nil)
+    controller.tick(percent: 50, armed: true, supported: true, now: now.addingTimeInterval(30))
+    #expect(helper.calls == ["setFanHold(true, 50)", "fanHoldDropped", "setFanHold(false, 0)"])
+}
+@Test @MainActor func fanFloorStopReleasesBeforeHelperRemovalAndStaysStopped() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidFanFloorController(helper: helper)
+    controller.tick(percent: 50, armed: true, supported: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    await controller.stopAndWait()
+    controller.tick(percent: 50, armed: true, supported: true)
+    #expect(controller.requestedPercent == nil)
+    #expect(helper.calls == ["setFanHold(true, 50)", "setFanHold(false, 0)"])
 }

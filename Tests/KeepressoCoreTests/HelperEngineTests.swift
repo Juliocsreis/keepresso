@@ -842,3 +842,74 @@ private final class FakeEngineKeyboard: KeyboardRemapping, @unchecked Sendable {
     #expect(keyboard.current == original)
     #expect(state.markers().contains(.keyboardLock))
 }
+
+private final class FakeBatteryLowPower: BatteryLowPowerControlling, @unchecked Sendable {
+    var mode: Int? = 0
+    var succeed = true
+    var writes: [Int] = []
+    func batteryMode() -> Int? { mode }
+    func setBatteryMode(_ mode: Int) -> Bool {
+        writes.append(mode)
+        guard succeed else { return false }
+        self.mode = mode; return true
+    }
+}
+@Test func lowPowerHoldsRestorePriorOnLastDisconnect() {
+    for prior in [0, 1, 2] {
+        let control = FakeBatteryLowPower(); control.mode = prior
+        let state = FakeRestoreState()
+        let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+        #expect(engine.setLowPowerHold(client: 1, holding: true))
+        #expect(state.value(for: .batteryLowPower) == String(prior))
+        #expect(engine.setLowPowerHold(client: 2, holding: true))
+        #expect(!engine.isIdle)
+        engine.clientDisconnected(1); #expect(control.mode == 1)
+        engine.clientDisconnected(2)
+        #expect(control.mode == prior); #expect(state.markers().isEmpty); #expect(engine.isIdle)
+        #expect(control.writes == [1, prior])
+    }
+}
+@Test func lowPowerRestoreDebtSurvivesFailureAndDaemonRestart() {
+    let control = FakeBatteryLowPower(); let state = FakeRestoreState()
+    let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    #expect(engine.setLowPowerHold(client: 1, holding: true))
+    control.succeed = false
+    #expect(!engine.setLowPowerHold(client: 1, holding: false))
+    #expect(state.value(for: .batteryLowPower) == "0")
+    control.succeed = true
+    let restarted = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    restarted.restoreAtLaunch()
+    #expect(control.mode == 0); #expect(state.markers().isEmpty)
+}
+@Test func lowPowerDoesNotClobberUserChangesOrGuessUnsupportedMode() {
+    let control = FakeBatteryLowPower(); let state = FakeRestoreState()
+    let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+    control.mode = nil
+    #expect(!engine.setLowPowerHold(client: 1, holding: true)); #expect(control.writes.isEmpty)
+    control.mode = 0
+    #expect(engine.setLowPowerHold(client: 1, holding: true))
+    control.mode = 0 // changed in System Settings while held
+    #expect(engine.setLowPowerHold(client: 1, holding: false)); #expect(control.writes == [1])
+    #expect(state.markers().isEmpty)
+}
+@Test func batteryLowPowerParserDoesNotReadTheAdapterSetting() {
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n lowpowermode 0\n highpowermode 1\nAC Power:\n lowpowermode 1") == 2)
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n lowpowermode 1\n highpowermode 1") == nil)
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n powermode 2\nAC Power:\n powermode 0") == 2)
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n lowpowermode 0\n powermode 1") == 1)
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("AC Power:\n lowpowermode 1\nBattery Power:\n lowpowermode 0") == 0)
+    #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n standby 1\nAC Power:\n lowpowermode 1") == nil)
+}
+
+@Test func closedLidFanFloorCombinesWithHeatBoostByMaximum() {
+    let fans = FakeFanControl()
+    let engine = HelperEngine(runner: FakeRunner(), state: FakeRestoreState(), fans: fans)
+    #expect(engine.setFanHold(client: 10, holding: true, percent: 50))
+    #expect(engine.setFanHold(client: 20, holding: true, percent: 80))
+    #expect(fans.forcedPercents == [50, 80])
+    #expect(engine.setFanHold(client: 20, holding: false, percent: 0))
+    #expect(fans.forcedPercents == [50, 80, 50])
+    #expect(fans.restoreCalls == 0)
+    engine.clientDisconnected(10)
+    #expect(fans.restoreCalls == 1)
+}

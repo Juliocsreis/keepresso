@@ -77,6 +77,10 @@ final class HelperConnection: NSObject, HelperXPCProtocol {
         reply(engine.flushDNS())
     }
 
+    func setLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void) {
+        reply(engine.setLowPowerHold(client: clientID, holding: holding))
+    }
+
     func setKeyboardLock(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void) {
         reply(engine.setKeyboardLock(client: clientID, holding: holding))
     }
@@ -202,7 +206,8 @@ let engine = HelperEngine(
     runner: ProcessCommandRunner(),
     state: FileRestoreState(),
     fans: SMCFanController(),
-    sleepDisabledReader: HelperEngine.readSleepDisabled
+    sleepDisabledReader: HelperEngine.readSleepDisabled,
+    lowPower: PMSetBatteryLowPowerControl()
 )
 // Settle anything a previous life left behind (crash or reboot mid-hold)
 // before accepting new work.

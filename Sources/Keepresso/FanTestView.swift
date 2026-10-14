@@ -101,7 +101,7 @@ struct FanTestRows: View {
         case .helperUpdating:
             L("The helper is updating itself to this version of Keepresso (no password needed). Fan boost and this test unlock when it finishes, usually under a minute.")
         case .boostActive:
-            L("The fans are boosted for heat right now, so the test stays off until readings recover.")
+            L("Fan control is active, so the test stays off until all fan holds end.")
         }
     }
 

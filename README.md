@@ -191,6 +191,29 @@ It lives quietly in the menu bar, no Dock icon, no clutter.
   globally: on when a keep-awake session starts, off when it ends (or the app
   quits, even after a crash), with the password asked once per app run, or
   never with the administrator helper.
+- 📱 **Hotspot fallback.** In Preferences > General, opt into a selected Wi-Fi
+  hotspot when the Mac loses its network connection. Scope it to active
+  keep-awake sessions (the default), closed-display mode, or whenever Keepresso
+  runs. Choose the delay, retry interval, battery minimum, and connection
+  notifications. Passwords stay in Keychain and are never included in settings
+  backups. Requires Location access and a broadcasting, secured hotspot. For
+  iPhone discovery, use macOS Wi-Fi settings > Ask to join hotspots > Automatic.
+  Keepresso does not enable the phone's hotspot remotely, interrupt an existing
+  route, or switch away from a connected hotspot with no internet access.
+  A network handoff can briefly interrupt requests; agents must handle their
+  own reconnects.
+- 🍃 **Closed-lid Low Power Mode.** An optional switch in General's
+  closed-display section temporarily selects Low Power Mode on battery while
+  the lid is shut and the sleep override is active. The administrator helper
+  restores the previous battery mode when the lid opens, the override ends,
+  AC power is connected, or the app disconnects. Its restore journal also
+  survives daemon restarts. The power-adapter setting is untouched.
+- 🌀 **Closed-lid fan floor.** On supported Macs with fans, opt into a minimum
+  fan speed while closed-display mode is active and the lid is shut. Starts at
+  50% of the fan range, with an adjustable level. This is independent of the
+  thermal heat boost and pause settings: a heat boost can raise the floor, then
+  return to it when the Mac cools. Fanless Macs keep the existing thermal pause
+  behavior. Disarming or quitting restores automatic fan control.
 - 🔑 **One password, ever.** An optional **administrator helper**, a small
   system service installed from Preferences > General (or the welcome screen),
   handles the privileged switches for Keepresso: closed-display mode, the

@@ -268,3 +268,8 @@
 "on battery at %d%%" = "От аккумулятора, заряд %d%%";
 "Resumed, battery recovered" = "Возобновлено, заряд восстановлен";
 "Resumed, temperature recovered" = "Возобновлено, температура в норме";
+"Save the hotspot password first." = "Сначала сохраните пароль точки доступа.";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "Точка доступа не найдена. Включите режим модема на телефоне.";
+"Allow Location access to find Wi-Fi networks." = "Разрешите доступ к геопозиции для поиска сетей Wi-Fi.";
+"A network connection is already available." = "Сетевое подключение уже доступно.";
+"Turn on Wi-Fi to connect to the hotspot." = "Включите Wi-Fi для подключения к точке доступа.";

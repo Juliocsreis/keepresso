@@ -268,3 +268,8 @@
 "on battery at %d%%" = "akkumulátorról %d%%-nál";
 "Resumed, battery recovered" = "Folytatva, az akkumulátor helyrejött";
 "Resumed, temperature recovered" = "Folytatva, a hőmérséklet helyrejött";
+"Save the hotspot password first." = "Először mentsd el a hotspot jelszavát.";
+"Hotspot not found. Enable Personal Hotspot on your phone." = "A hotspot nem található. Engedélyezd a személyes hotspotot a telefonodon.";
+"Allow Location access to find Wi-Fi networks." = "A Wi-Fi-hálózatok kereséséhez engedélyezd a helyhozzáférést.";
+"A network connection is already available." = "Már elérhető egy hálózati kapcsolat.";
+"Turn on Wi-Fi to connect to the hotspot." = "A hotspothoz való csatlakozáshoz kapcsold be a Wi-Fi-t.";
