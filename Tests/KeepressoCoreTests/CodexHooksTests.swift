@@ -184,6 +184,51 @@ private let cli = "/Applications/Keepresso.app/Contents/Helpers/keepresso"
     }
 }
 
+@Test(arguments: ["\"3\"", "true", "false", "-1", "2.5", "3.0", "1e0", "{}", "[]",
+                  "18446744073709551616"])
+func codexRepairFixesMalformedTimeouts(literal: String) throws {
+    for event in CodexHooks.installedEvents {
+        let existing = try codexTimeoutFixture(event: event, literal: literal)
+        let report = CodexHooks.inspect(existing, cliPath: cli)
+        #expect(report.stale == [event], "\(event): \(literal)")
+        guard case .needsRepair = CodexHooks.hookInstallState(of: existing, cliPath: cli) else {
+            Issue.record("malformed timeout must trigger repair: \(event), \(literal)")
+            continue
+        }
+        let repaired = try CodexHooks.installHooks(into: existing, cliPath: cli)
+        #expect(CodexHooks.inspect(repaired, cliPath: cli).isHealthy)
+        #expect(try CodexHooks.installHooks(into: repaired, cliPath: cli) == repaired)
+    }
+}
+
+@Test(arguments: [nil, "null", "0", "1", "3"] as [String?])
+func codexHealthAcceptsValidTimeouts(literal: String?) throws {
+    for event in CodexHooks.installedEvents {
+        let existing = try codexTimeoutFixture(event: event, literal: literal)
+        #expect(CodexHooks.inspect(existing, cliPath: cli).isHealthy)
+        #expect(CodexHooks.hookInstallState(of: existing, cliPath: cli) == .installed)
+    }
+}
+
+private func codexTimeoutFixture(event: String, literal: String?) throws -> Data {
+    let fresh = try CodexHooks.installHooks(into: nil, cliPath: cli)
+    var root = try #require(try JSONSerialization.jsonObject(with: fresh) as? [String: Any])
+    var hooks = try #require(root["hooks"] as? [String: Any])
+    var groups = try #require(hooks[event] as? [[String: Any]])
+    var entries = try #require(groups[0]["hooks"] as? [[String: Any]])
+    // Insert the literal after serialization so Foundation cannot turn 3.0 into 3.
+    entries[0]["timeout"] = literal == nil ? nil : "__keepresso_timeout_fixture__"
+    // A foreign timeout above our limit must never trigger repair on its own.
+    entries.append(["type": "command", "command": "user-hook.sh", "timeout": 120])
+    groups[0]["hooks"] = entries
+    hooks[event] = groups
+    root["hooks"] = hooks
+    let serialized = try JSONSerialization.data(withJSONObject: root)
+    let json = try #require(String(data: serialized, encoding: .utf8))
+    return Data(json.replacingOccurrences(of: "\"__keepresso_timeout_fixture__\"",
+                                          with: literal ?? "null").utf8)
+}
+
 // MARK: - Records
 
 @Test func codexRecordsAreOwnedByCodexAndSparedByOtherRemovals() throws {

@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Exact session-state tracking for the Codex CLI, the third agent with a
 /// lifecycle hook system.
@@ -249,7 +250,7 @@ public enum CodexHooks {
         }
         for (event, value) in hooks {
             guard let groups = value as? [Any] else { continue }
-            let ours = groups.flatMap { keepressoCommands(in: $0) }
+            let ours = groups.flatMap { keepressoEntries(in: $0) }
             guard !ours.isEmpty else { continue }
             guard installedEvents.contains(event) else {
                 report.orphaned.insert(event)
@@ -257,15 +258,8 @@ public enum CodexHooks {
             }
             if ours.count > 1 {
                 report.duplicated.insert(event)
-            } else if ours[0] != hookCommand(event: event, cliPath: cliPath)
-                || (event == "SessionEnd" && groups.contains { group in
-                    guard let group = group as? [String: Any],
-                          let entries = group["hooks"] as? [Any] else { return false }
-                    return entries.compactMap { $0 as? [String: Any] }.contains { entry in
-                        (entry["command"] as? String)?.contains(hookMarker) == true
-                            && (entry["timeout"] as? NSNumber).map { $0.doubleValue > 3 } == true
-                    }
-                }) {
+            } else if ours[0]["command"] as? String != hookCommand(event: event, cliPath: cliPath)
+                || !hasSupportedTimeout(ours[0], event: event) {
                 report.stale.insert(event)
             } else {
                 report.healthy.insert(event)
@@ -312,12 +306,27 @@ public enum CodexHooks {
     }
 
     static func keepressoCommands(in element: Any) -> [String] {
+        keepressoEntries(in: element).compactMap { $0["command"] as? String }
+    }
+
+    private static func keepressoEntries(in element: Any) -> [[String: Any]] {
         guard let group = element as? [String: Any],
               let inner = group["hooks"] as? [Any] else { return [] }
         return inner.compactMap { entry in
-            guard let entry = entry as? [String: Any] else { return nil }
-            return (entry["command"] as? String).flatMap { $0.contains(hookMarker) ? $0 : nil }
+            guard let entry = entry as? [String: Any],
+                  (entry["command"] as? String)?.contains(hookMarker) == true else { return nil }
+            return entry
         }
+    }
+
+    private static func hasSupportedTimeout(_ entry: [String: Any], event: String) -> Bool {
+        // Codex accepts an optional UInt64, with null also selecting its default.
+        guard let value = entry["timeout"], !(value is NSNull) else { return true }
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: number.objCType)),
+              let seconds = UInt64(number.stringValue) else { return false }
+        return event != "SessionEnd" || seconds <= 3
     }
 
     /// Reads the file down to the two keys Codex tolerates. A top-level key we
