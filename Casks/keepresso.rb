@@ -10,8 +10,8 @@
 #   (shasum -a 256 dist/Keepresso-<version>.dmg), then commit to the tap.
 # The `livecheck` block lets `brew livecheck` notice new GitHub releases.
 cask "keepresso" do
-  version "1.26.0"
-  sha256 "001682c1a2e9634c4de6159f7ca029d60d906330268da2e9c0e35c94d57f456c"
+  version "1.27.0"
+  sha256 "7a3a81464ed88609effcc467a910b1d4a69eccbe67cbfc8e24adfd046b2f7172"
 
   url "https://github.com/gyorgysh/keepresso/releases/download/v#{version}/Keepresso-#{version}.dmg"
   name "Keepresso"
