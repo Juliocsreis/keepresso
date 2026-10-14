@@ -1,5 +1,30 @@
 import Foundation
 
+/// Presentation follows the existing recovery lifecycle, so a feature call
+/// during launchd startup does not look like an exhausted recovery.
+public enum HelperRecoveryPhase: Equatable, Sendable {
+    case inactive, ready, initializing, updating, needsApproval, unavailable
+
+    public static func resolve(installed: Bool, awaitingApproval: Bool, checking: Bool,
+                               outdated: Bool, hasReply: Bool, recoveryPending: Bool,
+                               recoveryExhausted: Bool, healthCheckCompleted: Bool = false) -> Self {
+        if awaitingApproval { return .needsApproval }
+        guard installed else { return .inactive }
+        if recoveryExhausted { return .unavailable }
+        if outdated { return .updating }
+        if checking || recoveryPending { return .initializing }
+        if !hasReply { return healthCheckCompleted ? .unavailable : .initializing }
+        return .ready
+    }
+
+    /// These errors originate in Core, so match its localized messages.
+    /// Unrelated feature failures retain their warning presentation.
+    public static func isHelperConnectionError(_ message: String) -> Bool {
+        message == L("The Keepresso helper isn't responding.")
+            || message == L("The Keepresso helper couldn't change the setting.")
+    }
+}
+
 /// Installation ownership must be shared by registration and update bookkeeping.
 /// A development copy must not consume the installed copy's update marker or
 /// replace its bookmark, even when it never calls SMAppService itself.

@@ -117,10 +117,18 @@ public final class ClosedLidLowPowerController {
     @ObservationIgnored private var batteryLatched = false
     @ObservationIgnored private var requestedBattery = false
     @ObservationIgnored private var requestedAdapter = false
+    @ObservationIgnored private var wantedBattery = false
+    @ObservationIgnored private var wantedAdapter = false
+    @ObservationIgnored private var waitingStatus: Status = .off
     @ObservationIgnored private var activeTask: Task<Void, Never>?
     @ObservationIgnored private var stopping = false
     @ObservationIgnored private var pausedUntilDisarmed = false
     public init(helper: PrivilegedHelperCalling) { self.helper = helper }
+    public func resumeAfterHelperReplacement() {
+        pausedUntilDisarmed = false
+        lastAttempt = nil
+        batteryHolding = false; adapterHolding = false; failed = false
+    }
     public func tick(enabled: Bool, lidClosed: Bool?, closedDisplayActive: Bool?,
                      onBattery: Bool?, helperAvailable: Bool, allowOnAC: Bool = false, now: Date = Date()) {
         guard !stopping else { return }
@@ -133,9 +141,11 @@ public final class ClosedLidLowPowerController {
         let waiting: Status = !enabled || pausedUntilDisarmed ? .off : !helperAvailable ? .needsHelper
             : closedDisplayActive != true && !armed ? .waitingForClosedDisplay
             : !armed ? .waitingForLid : !batteryLatched && !allowOnAC ? .waitingForBattery : .active
+        wantedBattery = desiredBattery; wantedAdapter = desiredAdapter; waitingStatus = waiting
         status = busy ? .switching : failed ? .failed : waiting
         guard !busy else { return }
         guard desiredBattery != requestedBattery || desiredAdapter != requestedAdapter
+                || (desiredBattery && !batteryHolding) || (desiredAdapter && !adapterHolding)
                 || (failed && (requestedBattery || requestedAdapter)) else {
             if !desiredBattery && !desiredAdapter { failed = false; lastAttempt = nil; status = waiting }
             return
@@ -146,47 +156,51 @@ public final class ClosedLidLowPowerController {
         busy = true; lastAttempt = now; status = .switching
         activeTask = Task { [helper] in
             defer { activeTask = nil }
-            var ok = true
-            // Restore disabled profiles before engaging new ones. Remember failed
-            // attempts too: a partially applied write still needs a release.
-            if !desiredAdapter && requestedAdapter {
-                let released = await Task.detached { helper.setAdapterLowPowerHold(false) }.value
-                if released { requestedAdapter = false; adapterHolding = false }
-                ok = released && ok
-            }
-            if !desiredBattery && requestedBattery {
-                let released = await Task.detached { helper.setLowPowerHold(false) }.value
-                if released { requestedBattery = false; batteryHolding = false }
-                ok = released && ok
-            }
-            if desiredBattery && (!batteryHolding || failed) {
+            var attemptedReleases: Set<LowPowerProfile> = []
+            await releaseUnwantedProfiles(attempted: &attemptedReleases)
+            // Conditions can change during an XPC round trip. Check the live
+            // target before each engage, then compensate any completed write
+            // that became unwanted instead of waiting for another timer tick.
+            if wantedBattery && !batteryHolding {
                 requestedBattery = true
+                attemptedReleases.remove(.battery)
                 let engaged = await Task.detached { helper.setLowPowerHold(true) }.value
-                batteryHolding = engaged; ok = engaged && ok
+                batteryHolding = engaged
             }
-            if desiredAdapter && (!adapterHolding || failed) {
+            await releaseUnwantedProfiles(attempted: &attemptedReleases)
+            if wantedAdapter && !adapterHolding {
                 requestedAdapter = true
+                attemptedReleases.remove(.adapter)
                 let engaged = await Task.detached { helper.setAdapterLowPowerHold(true) }.value
-                adapterHolding = engaged; ok = engaged && ok
+                adapterHolding = engaged
             }
-            failed = !ok; busy = false; status = ok ? waiting : .failed
+            await releaseUnwantedProfiles(attempted: &attemptedReleases)
+            failed = (requestedBattery && (!wantedBattery || !batteryHolding))
+                || (requestedAdapter && (!wantedAdapter || !adapterHolding))
+            busy = false
+            let waitingForEngage = (wantedBattery && !batteryHolding) || (wantedAdapter && !adapterHolding)
+            status = failed ? .failed : waitingForEngage ? .switching : waitingStatus
         }
     }
-    public func stopAndWait() async {
-        stopping = true; pausedUntilDisarmed = true
-        defer { stopping = false }
-        await activeTask?.value
-        var ok = true
-        if requestedAdapter {
+
+    private func releaseUnwantedProfiles(attempted: inout Set<LowPowerProfile>) async {
+        if !wantedAdapter && requestedAdapter && attempted.insert(.adapter).inserted {
             let released = await Task.detached { [helper] in helper.setAdapterLowPowerHold(false) }.value
             if released { requestedAdapter = false; adapterHolding = false }
-            ok = released && ok
         }
-        if requestedBattery {
+        if !wantedBattery && requestedBattery && attempted.insert(.battery).inserted {
             let released = await Task.detached { [helper] in helper.setLowPowerHold(false) }.value
             if released { requestedBattery = false; batteryHolding = false }
-            ok = released && ok
         }
-        failed = !ok; status = ok ? .off : .failed
+    }
+
+    public func stopAndWait() async {
+        stopping = true; pausedUntilDisarmed = true
+        wantedBattery = false; wantedAdapter = false; waitingStatus = .off
+        defer { stopping = false }
+        await activeTask?.value
+        var attempted: Set<LowPowerProfile> = []
+        await releaseUnwantedProfiles(attempted: &attempted)
+        failed = hasPendingRequests; status = failed ? .failed : .off
     }
 }

@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "等待電池供電。啟用接上電源時使用可包括電源轉接器。";
 "Updating Low Power Mode…" = "正在更新低耗電模式…";
 "Low Power Mode is active." = "低耗電模式已啟用。";
+"Initializing the helper…" = "正在初始化輔助程式…";
+"Updating the helper…" = "正在更新輔助程式…";

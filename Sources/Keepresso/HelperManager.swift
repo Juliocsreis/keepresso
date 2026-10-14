@@ -56,6 +56,7 @@ final class HelperManager {
     /// True while a health check (and possibly a repair) is in flight, so the
     /// attention window can show progress instead of a stale verdict.
     private(set) var isChecking = false
+    private(set) var hasCompletedHealthCheck = false
     /// The protocol version the daemon last answered with, `nil` before any
     /// handshake. Right after an app update this can briefly lag behind
     /// ``HelperService/protocolVersion``: the pre-update daemon image keeps
@@ -70,6 +71,10 @@ final class HelperManager {
         guard let daemonProtocolVersion else { return false }
         return daemonProtocolVersion < HelperService.protocolVersion
     }
+    /// New features must not treat an unanswered handshake as a current daemon.
+    var daemonReadyForCurrentFeatures: Bool {
+        isInstalled && (daemonProtocolVersion ?? 0) >= HelperService.protocolVersion
+    }
 
     /// Polls while the user is over in System Settings deciding, so the UI
     /// flips to "installed" by itself once they approve.
@@ -78,8 +83,11 @@ final class HelperManager {
     /// Single-flight guard for the health check, so a launch-time check and a
     /// failure-triggered one join the same run instead of stacking repairs.
     @ObservationIgnored private var healthCheck: Task<HelperHealth, Never>?
+    @ObservationIgnored private var healthCheckGeneration = 0
     /// Single-flight guard for the stale-daemon watch (see ``watchDaemonUpdate()``).
     @ObservationIgnored private var daemonUpdateWatch: Task<Void, Never>?
+    @ObservationIgnored private var daemonUpdateGeneration = 0
+    @ObservationIgnored private var recoverySuppressed = false
     /// One repair per app run: registration churn must never loop.
     @ObservationIgnored private var repairAttempted = false
     /// Whether this build may rewrite the daemon registration. BTM refuses
@@ -141,7 +149,7 @@ final class HelperManager {
             // alive through the whole window).
             watchDaemonUpdate()
         }
-        if status == .enabled, !wasInstalled {
+        if status == .enabled, !wasInstalled, !recoverySuppressed {
             // Warm the connection and, after an app update or a protocol
             // bump, nudge the stale daemon to retire so launchd relaunches
             // the binary now in the bundle.
@@ -159,6 +167,8 @@ final class HelperManager {
             lastError = L("This copy of Keepresso isn't in the Applications folder, so it leaves the helper alone. Install from /Applications.")
             return
         }
+        recoverySuppressed = false
+        hasCompletedHealthCheck = false
         lastError = nil
         do {
             try service.register()
@@ -187,8 +197,10 @@ final class HelperManager {
     /// holds first, so nothing is left held by a service that's going away.
     /// Note System Settings can keep a stale row under Login Items for a
     /// while after a successful unregister; the status here is authoritative.
-    func uninstall() async {
-        guard managesDaemon else { return }
+    @discardableResult
+    func uninstall() async -> Bool {
+        guard managesDaemon else { return false }
+        cancelRecoveryWork()
         lastError = nil
         approvalPoll?.cancel()
         do {
@@ -211,6 +223,7 @@ final class HelperManager {
            let findings = await inspectRecords(), findings.daemonState != .missing {
             lastError = L("Removed. System Settings may keep showing Keepresso under App Background Activity until macOS refreshes its list; restarting the Mac clears the leftover row.")
         }
+        return status == .notRegistered || status == .notFound
     }
 
     /// Verify that an installed daemon actually responds, and repair its
@@ -227,20 +240,37 @@ final class HelperManager {
     @discardableResult
     func verifyAndRepairIfNeeded() async -> HelperHealth {
         if let running = healthCheck { return await running.value }
+        healthCheckGeneration &+= 1
+        let generation = healthCheckGeneration
         let check = Task { await self.runHealthCheck() }
         healthCheck = check
         isChecking = true
         let health = await check.value
-        isChecking = false
-        healthCheck = nil
+        if generation == healthCheckGeneration {
+            isChecking = false
+            healthCheck = nil
+            hasCompletedHealthCheck = true
+        }
         return health
     }
 
+    /// Explicit removal/reinstallation wins over an older automatic check.
+    func cancelRecoveryWork() {
+        recoverySuppressed = true
+        approvalPoll?.cancel(); approvalPoll = nil
+        healthCheckGeneration &+= 1
+        healthCheck?.cancel(); healthCheck = nil; isChecking = false
+        daemonUpdateGeneration &+= 1
+        daemonUpdateWatch?.cancel(); daemonUpdateWatch = nil
+    }
+
     private func runHealthCheck() async -> HelperHealth {
-        guard managesDaemon else { return .notApplicable }
+        guard managesDaemon, !recoverySuppressed, !Task.isCancelled else { return .notApplicable }
         refresh()
         guard status == .enabled else { return .notApplicable }
-        if let version = await recoveredVersion() {
+        let version = await recoveredVersion()
+        guard !Task.isCancelled else { return .notApplicable }
+        if let version {
             daemonProtocolVersion = version
             lastError = nil
             if version < HelperService.protocolVersion {
@@ -266,10 +296,12 @@ final class HelperManager {
         // Activity switch is off can only be revived by the user: route to
         // the approval step instead of claiming a reinstall would help.
         let findings = await inspectRecords()
+        guard !Task.isCancelled else { return .notApplicable }
         if let findings {
             if !findings.staleCopyPaths.isEmpty {
                 let paths = findings.staleCopyPaths
                 await Task.detached { StaleBundleCleaner.removeTrashedCopies(at: paths) }.value
+                guard !Task.isCancelled else { return .notApplicable }
             }
             if findings.daemonState == .disabled {
                 lastError = nil
@@ -288,7 +320,9 @@ final class HelperManager {
             pollWhileAwaitingApproval()
             return .needsApproval
         }
-        if let version = await recoveredVersion() {
+        let repairedVersion = await recoveredVersion()
+        guard !Task.isCancelled else { return .notApplicable }
+        if let version = repairedVersion {
             daemonProtocolVersion = version
             if daemonOutdated { watchDaemonUpdate() }
             lastError = nil
@@ -344,6 +378,7 @@ final class HelperManager {
     /// clears a stale ``daemonOutdated`` on its own.
     private func pings() async -> Bool {
         let version = await pingedVersion()
+        guard !Task.isCancelled else { return false }
         if version != nil { daemonProtocolVersion = version }
         return version == HelperService.protocolVersion
     }
@@ -351,6 +386,7 @@ final class HelperManager {
     /// The daemon's answered protocol version, or nil when nothing replied,
     /// off the main actor.
     private func pingedVersion() async -> Int? {
+        guard !Task.isCancelled else { return nil }
         let client = self.client
         return await Task.detached { client.pingVersion() }.value
     }
@@ -364,9 +400,13 @@ final class HelperManager {
     /// minutes and refresh re-arms it later; the UI shows the waiting state
     /// via ``daemonOutdated`` either way. No repair, no reinstall, no prompt.
     func watchDaemonUpdate() {
-        guard daemonUpdateWatch == nil else { return }
+        guard daemonUpdateWatch == nil, !recoverySuppressed else { return }
+        daemonUpdateGeneration &+= 1
+        let generation = daemonUpdateGeneration
         daemonUpdateWatch = Task { [weak self] in
-            defer { self?.daemonUpdateWatch = nil }
+            defer {
+                if self?.daemonUpdateGeneration == generation { self?.daemonUpdateWatch = nil }
+            }
             for attempt in 0..<36 {
                 guard let self, !Task.isCancelled, self.status == .enabled else { return }
                 if attempt % 6 == 0 {
@@ -375,8 +415,10 @@ final class HelperManager {
                     let client = self.client
                     await Task.detached { client.retireStaleDaemon() }.value
                 }
+                guard !Task.isCancelled else { return }
                 try? await Task.sleep(for: .seconds(5))
                 guard let version = await self.pingedVersion() else { continue }
+                guard !Task.isCancelled else { return }
                 self.daemonProtocolVersion = version
                 if version >= HelperService.protocolVersion { return }
             }
@@ -390,6 +432,7 @@ final class HelperManager {
     /// still a live daemon, never a reason to keep a reinstall prompt up.
     func daemonResponds() async -> Bool {
         let version = await pingedVersion()
+        guard !Task.isCancelled else { return false }
         if version != nil { daemonProtocolVersion = version }
         return version != nil
     }

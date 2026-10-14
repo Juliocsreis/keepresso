@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Ожидание питания от батареи. Разрешите использование при подключении к питанию для адаптера.";
 "Updating Low Power Mode…" = "Обновление режима энергосбережения…";
 "Low Power Mode is active." = "Режим энергосбережения включён.";
+"Initializing the helper…" = "Запуск помощника…";
+"Updating the helper…" = "Обновление помощника…";

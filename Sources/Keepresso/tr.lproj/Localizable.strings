@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Pil gücü bekleniyor. Güç adaptörünü dahil etmek için prize bağlı kullanımı açın.";
 "Updating Low Power Mode…" = "Düşük Güç Modu güncelleniyor…";
 "Low Power Mode is active." = "Düşük Güç Modu etkin.";
+"Initializing the helper…" = "Yardımcı başlatılıyor…";
+"Updating the helper…" = "Yardımcı güncelleniyor…";

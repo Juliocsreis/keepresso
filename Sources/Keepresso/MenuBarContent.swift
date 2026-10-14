@@ -509,8 +509,8 @@ struct MenuBarContent: View {
         if (closedDisplayHidden && model.closedDisplayBusy) || (brewingOnlyHidden && model.closedDisplayAutoBusy) {
             AdminAuthNote(purpose: L("switch the sleep override with the session"))
         }
-        if closedDisplayHidden, let error = model.closedDisplayError { Text(error).font(type.caption).foregroundStyle(.orange) }
-        if brewingOnlyHidden, let error = model.closedDisplayAutoError { Text(error).font(type.caption).foregroundStyle(.orange) }
+        if closedDisplayHidden, let error = model.closedDisplayError { HelperFeatureNotice(model: model, message: error).font(type.caption) }
+        if brewingOnlyHidden, let error = model.closedDisplayAutoError { HelperFeatureNotice(model: model, message: error).font(type.caption) }
     }
 
     private func optionBinding(_ keyPath: WritableKeyPath<SleepPreventionOptions, Bool>) -> Binding<Bool> {
@@ -540,7 +540,7 @@ struct MenuBarContent: View {
                     : L("The Mac won't sleep at all until you turn this off. The display still sleeps as usual."))
                     .font(type.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if let error = model.closedDisplayError { Text(error).font(type.caption).foregroundStyle(.orange) }
+            if let error = model.closedDisplayError { HelperFeatureNotice(model: model, message: error).font(type.caption) }
         }
     }
 
@@ -552,7 +552,7 @@ struct MenuBarContent: View {
                         : L("Turns the sleep override on when a keep-awake session starts and off when it ends or Keepresso quits."))
                 .disabled(model.closedDisplayAutoBusy)
             if model.closedDisplayAutoBusy && !model.helperInstalled { AdminAuthNote(purpose: L("switch the sleep override with the session")) }
-            if let error = model.closedDisplayAutoError { Text(error).font(type.caption).foregroundStyle(.orange) }
+            if let error = model.closedDisplayAutoError { HelperFeatureNotice(model: model, message: error).font(type.caption) }
         }
     }
 
@@ -822,9 +822,8 @@ struct MenuBarContent: View {
             }
         }
         if let error = model.closedDisplayError {
-            Text(error)
+            HelperFeatureNotice(model: model, message: error)
                 .font(type.caption)
-                .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         }
 
@@ -841,9 +840,8 @@ struct MenuBarContent: View {
                 : L("switch the sleep override with the session"))
         }
         if let error = model.closedDisplayAutoError {
-            Text(error)
+            HelperFeatureNotice(model: model, message: error)
                 .font(type.caption)
-                .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1096,7 +1094,7 @@ struct MenuBarContent: View {
                     .font(type.callout.weight(.medium))
                 Text(model.helperAttention == .needsApproval
                     ? L("Approve Keepresso again in System Settings.")
-                    : L("The helper isn't responding; reinstall it."))
+                    : model.helper.lastError ?? L("The helper isn't responding; reinstall it."))
                     .font(type.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

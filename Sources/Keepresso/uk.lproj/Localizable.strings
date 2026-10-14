@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Очікування живлення від батареї. Дозвольте використання з підключеним живленням, щоб включити адаптер.";
 "Updating Low Power Mode…" = "Оновлення режиму низького енергоспоживання…";
 "Low Power Mode is active." = "Режим низького енергоспоживання активний.";
+"Initializing the helper…" = "Запуск помічника…";
+"Updating the helper…" = "Оновлення помічника…";

@@ -7,41 +7,39 @@ Versions follow [Semantic Versioning](https://semver.org).
 
 ### Added
 
-- Opt-in hotspot fallback in Preferences > General, with a selected secure
-  network, Keychain password storage, session or closed-display scope, grace
-  and retry controls, a battery cutoff, and connection notifications.
-- Optional Low Power Mode while closed-display mode is active with the lid
-  shut, on battery by default with an option for plugged-in use. The helper
-  verifies writes, restores each profile independently on release or disconnect,
-  and journals it for recovery after a daemon restart.
-- Independent, opt-in minimum fan speed during closed-display mode on supported
-  Macs, adjustable from 10 percent. Heat boosts can raise the floor, and fanless
-  Macs retain their existing thermal pause behavior. Existing thermal
-  configuration is preserved.
+- **Automatic hotspot fallback.** Choose a secure hotspot in Preferences >
+  General and connect when your Mac loses its network connection. Limit it to
+  keep-awake sessions, closed-display mode, or whenever Keepresso is running.
+  Set connection and retry delays, a minimum battery level, and notifications.
+  Hotspot passwords stay in Keychain and are excluded from settings backups.
+- **Closed-lid Low Power Mode.** Save battery while the lid is shut and
+  closed-display mode is active, with an option to include plugged-in use.
+  Keepresso shows when it is waiting or active and restores your previous
+  power settings when the mode ends. Requires the administrator helper.
+- **Closed-lid fan minimum.** Choose a minimum from 10% to 100% on supported
+  Macs with fans. Your existing heat-boost and thermal-pause settings remain
+  independent, and fan control returns to macOS when closed-display mode ends.
+  Fanless Macs keep their existing thermal protection.
 
 ### Changed
 
-- Share branded agent connection rows between onboarding and Preferences.
-  Include Codex's hook approval reminder in both. Bundle all 36 vector brand
-  image sets from tokenstat for current and future integrations.
-- Collapse other onboarding uses after a selection, with an option to reopen
-  them. Explain waiting and active states for closed-lid Low Power Mode.
+- Branded agent connection rows in onboarding and Preferences, with clearer
+  hook controls and a reminder to approve new hooks in Codex.
+- A shorter onboarding setup: after choosing a use, other choices collapse
+  into an expandable list so the relevant setup stays in focus.
+- Show neutral helper initialization and update hints while automatic recovery
+  runs, reserving warnings and reinstall prompts for persistent failures.
 
 ### Fixed
 
-- Add the macOS Location usage description and Hardened Runtime entitlement
-  needed to show the permission prompt. Scan hotspot networks after approval
-  and provide a direct Settings fallback.
-- Keep dropped fan holds visible to each controller independently, preserve
-  closed-lid Low Power Mode across unknown readings, and honor the hotspot
-  battery minimum when power information is unavailable. Retain hotspot
-  failures while waiting to retry and preserve defaults in partial configs.
-- Use a supported three-second timeout for Codex SessionEnd and automatically
-  repair excessive or malformed Keepresso hook timeouts
+- Fix Location permission requests so Wi-Fi triggers and hotspot selection can
+  read network names. Provide a shortcut to Location settings when needed.
+- Fix Codex SessionEnd hook timeouts and automatically repair existing
+  misconfigured Keepresso hooks
   ([#28](https://github.com/gyorgysh/keepresso/issues/28)). Thanks to
   [@emircansancar](https://github.com/emircansancar) for the report.
-- Retire Cursor's afterAgentThought hook during automatic repair while keeping
-  user-owned hooks and the remaining activity events.
+- Remove an unsupported Cursor hook from existing Keepresso integrations while
+  preserving user-owned hooks and the remaining activity reporting.
 
 ## [1.26.0] - 2026-10-04
 

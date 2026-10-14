@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Waiting for battery power. Enable plugged-in use to include the power adapter.";
 "Updating Low Power Mode…" = "Updating Low Power Mode…";
 "Low Power Mode is active." = "Low Power Mode is active.";
+"Initializing the helper…" = "Initializing the helper…";
+"Updating the helper…" = "Updating the helper…";

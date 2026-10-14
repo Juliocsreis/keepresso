@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Warten auf Akkubetrieb. Nutzung am Netzteil aktivieren, um den Adapter einzubeziehen.";
 "Updating Low Power Mode…" = "Stromsparmodus wird aktualisiert…";
 "Low Power Mode is active." = "Stromsparmodus ist aktiv.";
+"Initializing the helper…" = "Helfer wird gestartet…";
+"Updating the helper…" = "Helfer wird aktualisiert…";

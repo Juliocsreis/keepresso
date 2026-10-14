@@ -441,15 +441,13 @@ struct WelcomeView: View {
                 AdminAuthNote(purpose: L("keep the Mac awake with the lid closed"))
             }
             if let error = model.closedDisplayAutoError {
-                Label(error, systemImage: "exclamationmark.triangle")
+                HelperFeatureNotice(model: model, message: error)
                     .font(type.caption)
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let error = model.closedDisplayError {
-                Label(error, systemImage: "exclamationmark.triangle")
+                HelperFeatureNotice(model: model, message: error)
                     .font(type.caption)
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

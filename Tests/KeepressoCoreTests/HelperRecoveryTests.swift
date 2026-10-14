@@ -112,3 +112,26 @@ import Testing
     #expect(version == nil)
     #expect(pings == 1)
 }
+
+@Test func helperPresentationKeepsColdStartAndUpdateNeutralUntilRecoveryIsExhausted() {
+    func phase(checking: Bool = false, outdated: Bool = false, hasReply: Bool = false,
+               pending: Bool = false, exhausted: Bool = false, installed: Bool = true,
+               approval: Bool = false) -> HelperRecoveryPhase {
+        .resolve(installed: installed, awaitingApproval: approval, checking: checking,
+                 outdated: outdated, hasReply: hasReply, recoveryPending: pending,
+                 recoveryExhausted: exhausted)
+    }
+    #expect(phase() == .initializing)
+    #expect(phase(checking: true) == .initializing)
+    #expect(phase(hasReply: true, pending: true) == .initializing)
+    #expect(phase(outdated: true, hasReply: true) == .updating)
+    #expect(phase(hasReply: true) == .ready)
+    #expect(phase(checking: true, pending: true, exhausted: true) == .unavailable)
+    #expect(phase(pending: true, exhausted: true, approval: true) == .needsApproval)
+    #expect(phase(pending: true, exhausted: true, installed: false) == .inactive)
+    #expect(HelperRecoveryPhase.resolve(installed: true, awaitingApproval: false, checking: false,
+        outdated: false, hasReply: false, recoveryPending: false, recoveryExhausted: false,
+        healthCheckCompleted: true) == .unavailable)
+    #expect(HelperRecoveryPhase.isHelperConnectionError(L("The Keepresso helper isn't responding.")))
+    #expect(!HelperRecoveryPhase.isHelperConnectionError("Disk access failed"))
+}

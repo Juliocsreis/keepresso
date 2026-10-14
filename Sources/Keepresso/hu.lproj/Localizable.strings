@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Várakozás akkumulátoros üzemre. A tápegységhez engedélyezd a hálózati tápról való használatot is.";
 "Updating Low Power Mode…" = "Alacsony töltöttségű mód frissítése…";
 "Low Power Mode is active." = "Az alacsony töltöttségű mód aktív.";
+"Initializing the helper…" = "A segéd indítása…";
+"Updating the helper…" = "A segéd frissítése…";

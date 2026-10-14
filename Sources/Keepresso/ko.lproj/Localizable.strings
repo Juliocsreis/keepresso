@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "배터리 전원을 기다리는 중입니다. 전원 어댑터도 포함하려면 전원 연결 중 사용을 켜세요.";
 "Updating Low Power Mode…" = "저전력 모드 업데이트 중…";
 "Low Power Mode is active." = "저전력 모드가 켜져 있습니다.";
+"Initializing the helper…" = "도우미 초기화 중…";
+"Updating the helper…" = "도우미 업데이트 중…";

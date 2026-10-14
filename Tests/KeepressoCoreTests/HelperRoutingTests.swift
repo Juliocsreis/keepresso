@@ -10,6 +10,7 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
     var pingSucceeds = true
     var holdSucceeds = true
     var fanDropped = false
+    var lowPowerBarrier: LowPowerCallBarrier?
 
     func ping() -> Bool {
         record("ping")
@@ -68,6 +69,7 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
 
     func setLowPowerHold(_ holding: Bool) -> Bool {
         record("setLowPowerHold(\(holding))")
+        if holding { lowPowerBarrier?.waitForRelease() }
         return holdSucceeds
     }
     func setAdapterLowPowerHold(_ holding: Bool) -> Bool {
@@ -85,6 +87,18 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
         calls.append(call)
         lock.unlock()
     }
+}
+
+private final class LowPowerCallBarrier: @unchecked Sendable {
+    private let lock = NSLock()
+    private var began = false
+    private let permit = DispatchSemaphore(value: 0)
+    var started: Bool { lock.lock(); defer { lock.unlock() }; return began }
+    func waitForRelease() {
+        lock.lock(); began = true; lock.unlock()
+        _ = permit.wait(timeout: .now() + 3)
+    }
+    func release() { permit.signal() }
 }
 
 private final class FakeFallbackSleepWatchdog: SleepWatchdogLaunching, @unchecked Sendable {
@@ -403,4 +417,48 @@ private final class LockedFlag: @unchecked Sendable {
     #expect(!settings.closedLidLowPowerOnAC)
     let old = try JSONDecoder().decode(KeepressoSettings.self, from: Data(#"{"closedLidLowPower":true}"#.utf8))
     #expect(old.closedLidLowPower && !old.closedLidLowPowerOnAC)
+}
+
+@Test @MainActor func lowPowerDisarmDuringBatteryWriteNeverEngagesAdapterAndRestoresImmediately() async throws {
+    let helper = FakeHelperClient()
+    let barrier = LowPowerCallBarrier(); helper.lowPowerBarrier = barrier
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    for _ in 0..<100 { if barrier.started { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(barrier.started)
+    controller.tick(enabled: false, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    barrier.release()
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.holding && !controller.hasPendingRequests)
+    #expect(controller.status == .off)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}
+
+@Test @MainActor func lowPowerDisarmBeforeWorkerStartsDoesNotWriteEitherProfile() async throws {
+    let helper = FakeHelperClient()
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    controller.tick(enabled: false, lidClosed: false, closedDisplayActive: false, onBattery: true, helperAvailable: true, allowOnAC: true)
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(helper.calls.isEmpty)
+    #expect(controller.status == .off)
+}
+
+@Test @MainActor func helperReplacementRearmsStoppedClosedLidControllersWithoutChangingTheirOptions() async throws {
+    let helper = FakeHelperClient()
+    let lowPower = ClosedLidLowPowerController(helper: helper)
+    let floor = ClosedLidFanFloorController(helper: helper)
+    lowPower.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    floor.tick(percent: 10, armed: true, supported: true)
+    for _ in 0..<100 { if !lowPower.busy && !floor.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    await lowPower.stopAndWait(); await floor.stopAndWait()
+    #expect(!lowPower.hasPendingRequests && floor.requestedPercent == nil)
+    lowPower.resumeAfterHelperReplacement(); floor.resumeAfterHelperReplacement()
+    lowPower.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    floor.tick(percent: 10, armed: true, supported: true)
+    for _ in 0..<100 { if !lowPower.busy && !floor.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(lowPower.batteryHolding && lowPower.adapterHolding)
+    #expect(floor.holdingPercent == 10)
+    #expect(helper.calls.filter { $0 == "setAdapterLowPowerHold(true)" }.count == 2)
+    #expect(helper.calls.filter { $0 == "setFanHold(true, 10)" }.count == 2)
 }

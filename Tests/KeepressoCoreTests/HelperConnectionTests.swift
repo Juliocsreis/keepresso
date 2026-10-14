@@ -7,7 +7,7 @@ import Testing
 /// HelperXPCProtocol verb would raise.
 private final class OverlappingHelper: NSObject, @unchecked Sendable {
     let slowCallStarted = DispatchSemaphore(value: 0)
-    let version: Int
+    private var version: Int
     private var lowPowerCalls = 0
     private var pingCalls = 0
     init(version: Int = HelperService.protocolVersion) { self.version = version }
@@ -36,8 +36,11 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
     }
 
     @objc func ping(reply: @escaping @Sendable (Int) -> Void) {
-        lock.lock(); pingCalls += 1; lock.unlock()
-        reply(version)
+        lock.lock(); pingCalls += 1; let replyVersion = version; lock.unlock()
+        reply(replyVersion)
+    }
+    func replaceVersion(with version: Int) {
+        lock.lock(); self.version = version; lock.unlock()
     }
 
     /// Generous on purpose: on a 3-core CI runner under full-suite parallel
@@ -252,4 +255,22 @@ private func blockingValue<Value: Sendable>(_ work: @escaping @Sendable () -> Va
     #expect(await blockingValue { !client.setAdapterLowPowerHold(true) })
     #expect(delegate.helper.pingCallCount == 1)
     #expect(delegate.helper.lowPowerCallCount == 0)
+}
+
+@Test func unsupportedLowPowerReleaseDoesNotPinTheOlderDaemonAfterReplacement() async {
+    for adapter in [false, true] {
+        let delegate = AnonymousHelperListener()
+        let listener = NSXPCListener.anonymous()
+        listener.delegate = delegate; listener.resume()
+        defer { listener.invalidate(); delegate.stop() }
+        let endpoint = listener.endpoint
+        let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
+        #expect(await blockingValue { adapter ? client.setAdapterLowPowerHold(true) : client.setLowPowerHold(true) })
+        delegate.helper.replaceVersion(with: adapter ? 11 : 9)
+        // An older daemon cannot confirm restoration, but its connection must
+        // be free to retire so the current daemon can settle the restore debt.
+        #expect(await blockingValue { !(adapter ? client.setAdapterLowPowerHold(false) : client.setLowPowerHold(false)) })
+        #expect(await blockingValue { delegate.waitForNoConnections() })
+        #expect(delegate.helper.lowPowerCallCount == 1)
+    }
 }

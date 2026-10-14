@@ -51,13 +51,17 @@ struct HotspotPreferencesSection: View {
                             Task {
                                 do {
                                     try await model.saveHotspotPassword(value, ssid: ssid)
-                                    if model.hotspotConfig.ssid == ssid { saved = true; password = ""; error = nil }
+                                    if model.hotspotConfig.ssid == ssid {
+                                        // Invalidate lookups started while the Keychain write was pending.
+                                        credentialRevision &+= 1
+                                        saved = true; password = ""; error = nil
+                                    }
                                 }
                                 catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
                                 saving = false
                             }
-                    }
-                    .disabled(saving || password.isEmpty || model.hotspotConfig.ssid.isEmpty || model.hotspotConfig.ssid.utf8.count > 32)
+                        }
+                        .disabled(saving || password.isEmpty || model.hotspotConfig.ssid.isEmpty || model.hotspotConfig.ssid.utf8.count > 32)
                     }
                 }
                 if saved {
@@ -72,7 +76,10 @@ struct HotspotPreferencesSection: View {
                                 defer { saving = false }
                                 do {
                                     try await model.forgetHotspotPassword(ssid: ssid)
-                                    if model.hotspotConfig.ssid == ssid { saved = false }
+                                    if model.hotspotConfig.ssid == ssid {
+                                        credentialRevision &+= 1
+                                        saved = false
+                                    }
                                 }
                                 catch { if model.hotspotConfig.ssid == ssid { self.error = error.localizedDescription } }
                             }

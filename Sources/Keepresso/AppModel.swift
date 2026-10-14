@@ -270,6 +270,7 @@ final class AppModel {
     @ObservationIgnored private(set) lazy var closedLidLowPowerController = ClosedLidLowPowerController(helper: helperClient)
     private let connectivityLid = IORegistryLidState()
     private let connectivityPower = IOKitPowerSourceMonitor()
+    @ObservationIgnored private var sawLowPowerHelperError = false
 
     var hotspotConfig: HotspotFallbackConfig {
         get { settings.hotspotFallback }
@@ -308,6 +309,9 @@ final class AppModel {
         }
     }
     func connectivityTick() {
+        let lowPowerFailed = closedLidLowPowerController.failed
+        if lowPowerFailed, !sawLowPowerHelperError, helperInstalled { verifyHelper() }
+        sawLowPowerHelperError = lowPowerFailed
         let useHotspot = settings.hotspotFallback.enabled
         let useLowPower = settings.closedLidLowPower
         guard useHotspot || useLowPower || closedLidLowPowerController.hasPendingRequests || closedLidLowPowerController.busy else { return }
@@ -321,7 +325,7 @@ final class AppModel {
         }
         closedLidLowPowerController.tick(enabled: useLowPower, lidClosed: lidClosed, closedDisplayActive: closed,
             onBattery: power.provider == .unknown ? nil : power.provider == .battery,
-            helperAvailable: helper.isInstalled && !helper.daemonOutdated, allowOnAC: settings.closedLidLowPowerOnAC)
+            helperAvailable: helper.daemonReadyForCurrentFeatures, allowOnAC: settings.closedLidLowPowerOnAC)
     }
 
     // MARK: - Awake explainer
@@ -1300,6 +1304,7 @@ final class AppModel {
     @ObservationIgnored private(set) lazy var fanFloor = ClosedLidFanFloorController(helper: XPCHelperClient())
     @ObservationIgnored private var fanFloorArming = ThermalArming()
     @ObservationIgnored private var fanFloorCancelInFlight = false
+    @ObservationIgnored private var sawFanFloorHelperError = false
     var closedLidMinimumFanPercent: Int? {
         get { settings.closedLidMinimumFanPercent }
         set {
@@ -1308,9 +1313,12 @@ final class AppModel {
         }
     }
     private func fanFloorTick() {
+        let floorFailed = fanFloor.failed
+        if floorFailed, !sawFanFloorHelperError, helperInstalled { verifyHelper() }
+        sawFanFloorHelperError = floorFailed
         guard settings.closedLidMinimumFanPercent != nil || fanFloor.requestedPercent != nil || fanFloor.busy else { return }
         let armed = fanFloorArming.update(lidClosed: connectivityLid.isClosed(), sleepOverrideActive: closedDisplay.isEnabled)
-        let supported = machineHasFans && helperInstalled && !helper.daemonOutdated
+        let supported = machineHasFans && helper.daemonReadyForCurrentFeatures
         if armed, supported, settings.closedLidMinimumFanPercent != nil, fanDryRun.isRunning {
             guard !fanFloorCancelInFlight else { return }
             fanFloorCancelInFlight = true
@@ -2658,21 +2666,43 @@ final class AppModel {
     /// Register the helper daemon (opens System Settings for the one-time
     /// approval when macOS wants it).
     func installHelper() {
+        guard !helperOperationInFlight else { return }
+        helperRecoveryFailed = false; helperApprovalRequired = false
+        helperAttention = nil
         helper.install()
+        verifyHelper()
     }
 
     /// Unregister the helper daemon. Any live holds are released first, so
     /// nothing stays held by a service that's going away; the osascript
     /// fallback takes over from the next engage.
     func removeHelper() {
+        guard beginHelperOperation() else { return }
         Task {
-            await fanDryRun.cancelAndWait()
-            await fanFloor.stopAndWait()
-            await closedLidLowPowerController.stopAndWait()
-            await closedDisplayAuto.stopIfHolding()
-            await awdl.stop()
+            defer { helperOperationInFlight = false }
+            await releaseHelperHolds()
             await helper.uninstall()
         }
+    }
+
+    private func releaseHelperHolds() async {
+        await fanDryRun.cancelAndWait()
+        await fanFloor.stopAndWait()
+        await closedLidLowPowerController.stopAndWait()
+        await closedDisplayAuto.stopIfHolding()
+        await awdl.stop()
+    }
+
+    private func beginHelperOperation() -> Bool {
+        guard !helperOperationInFlight else { return false }
+        helperOperationInFlight = true
+        helperVerificationGeneration &+= 1
+        helper.cancelRecoveryWork()
+        approvalRecoveryGeneration &+= 1
+        approvalRecoveryWatch?.cancel(); approvalRecoveryWatch = nil
+        helperRecoveryPending = false; helperRecoveryFailed = false
+        helperApprovalRequired = false; helperAttention = nil
+        return true
     }
 
     /// Why the helper attention window is up: the automatic repair got stuck
@@ -2690,6 +2720,29 @@ final class AppModel {
     /// so a slow daemon never pops a window. Cleared once a check comes back
     /// healthy or the user dismisses the window.
     private(set) var helperAttention: HelperAttention?
+    private(set) var helperRecoveryPending = false
+    private(set) var helperRecoveryFailed = false
+    private(set) var helperOperationInFlight = false
+    private var helperApprovalRequired = false
+    private var helperVerificationCount = 0
+    @ObservationIgnored private var helperVerificationGeneration = 0
+    @ObservationIgnored private var approvalRecoveryGeneration = 0
+
+    var helperRecoveryPhase: HelperRecoveryPhase {
+        .resolve(installed: helperInstalled,
+                 awaitingApproval: helper.awaitingApproval || helperApprovalRequired,
+                 checking: helper.isChecking || helperVerificationCount > 0,
+                 outdated: helper.daemonOutdated, hasReply: helper.daemonProtocolVersion != nil,
+                 recoveryPending: helperRecoveryPending, recoveryExhausted: helperRecoveryFailed,
+                 healthCheckCompleted: helper.hasCompletedHealthCheck)
+    }
+    var helperRecoveryHint: String? {
+        switch helperRecoveryPhase {
+        case .initializing: return L("Initializing the helper…")
+        case .updating: return L("Updating the helper…")
+        default: return nil
+        }
+    }
 
     /// Watches for the approval landing while the attention window shows the
     /// switch-it-on step. The manager polls `SMAppService.status`, but that
@@ -2715,7 +2768,16 @@ final class AppModel {
 
     private func watchForHelperRecovery() {
         approvalRecoveryWatch?.cancel()
+        approvalRecoveryGeneration &+= 1
+        let generation = approvalRecoveryGeneration
+        helperRecoveryPending = true
         approvalRecoveryWatch = Task { [weak self] in
+            defer {
+                if self?.approvalRecoveryGeneration == generation {
+                    self?.helperRecoveryPending = false
+                    self?.approvalRecoveryWatch = nil
+                }
+            }
             // Keep watching through delayed launchd recovery as well as
             // approval, so a late success does not leave a reinstall prompt.
             var escalated = false
@@ -2728,11 +2790,12 @@ final class AppModel {
                 }
                 // Visible (.broken, .needsApproval): keep watching for the
                 // recovery that clears it.
-                if self.helperAttention != nil { continue }
+                if self.helperAttention != nil || self.helperApprovalRequired { continue }
                 // Quiet phase: no banner, no window. A dismissal after an
                 // escalation stays dismissed.
                 if escalated { return }
                 if i >= Self.helperQuietPolls {
+                    self.helperRecoveryFailed = true
                     self.helperAttention = .broken
                     escalated = true
                 }
@@ -2746,17 +2809,30 @@ final class AppModel {
     /// the breakage typically surfaces (it follows an app update plus a
     /// reboot), and again from the failure edges of the privileged features.
     func verifyHelper() {
-        Task { await verifyHelperAndFollowUp() }
+        guard !helperOperationInFlight else { return }
+        let generation = helperVerificationGeneration
+        Task {
+            guard generation == helperVerificationGeneration else { return }
+            await verifyHelperAndFollowUp()
+        }
     }
 
     private func verifyHelperAndFollowUp() async {
+        guard !helperOperationInFlight else { return }
+        let generation = helperVerificationGeneration
+        helperVerificationCount += 1
+        defer { helperVerificationCount -= 1 }
         // First clear any previous copy of the app that an update pushed into
         // the Trash: BTM's bookmark keeps resolving the helper's record into
         // the Trash and disabling the daemon while one is there, so a repair
         // before the sweep wouldn't stick.
         await Task.detached { StaleBundleCleaner.sweepNow() }.value
-        switch await helper.verifyAndRepairIfNeeded() {
+        guard generation == helperVerificationGeneration, !helperOperationInFlight else { return }
+        let health = await helper.verifyAndRepairIfNeeded()
+        guard generation == helperVerificationGeneration, !helperOperationInFlight else { return }
+        switch health {
         case .healthy:
+            helperRecoveryFailed = false; helperApprovalRequired = false
             helperAttention = nil
             // A failed engage may have raced daemon startup or reconnection.
             // A successful ping is recovery even without re-registration;
@@ -2766,14 +2842,17 @@ final class AppModel {
         case .notApplicable:
             // Mid-reinstall the status parks at requiresApproval; keep the
             // window on the approval step rather than declaring success.
+            helperApprovalRequired = helper.awaitingApproval
             helperAttention = helper.awaitingApproval ? .needsApproval : nil
         case .repaired:
+            helperRecoveryFailed = false; helperApprovalRequired = false
             // Healed silently; let features a failed engage put on hold try
             // again on their next tick instead of waiting out the session.
             helperAttention = nil
             closedDisplayAuto.retryEngage()
             awdl.retryEngage()
         case .needsApproval:
+            helperRecoveryFailed = false; helperApprovalRequired = true
             helperAttention = .needsApproval
             // Also say so in a notification: the attention window can land
             // behind whatever the user is doing at login.
@@ -2802,14 +2881,22 @@ final class AppModel {
     /// release any holds, unregister, and register again. May land in
     /// `requiresApproval`, which the attention window walks the user through.
     func reinstallHelper() {
+        guard beginHelperOperation() else { return }
         Task {
+            defer { helperOperationInFlight = false }
             // The reinstall lands on a record BTM will invalidate again if an
             // old copy still sits in the Trash; sweep before rebuilding.
             await Task.detached { StaleBundleCleaner.sweepNow() }.value
-            await closedDisplayAuto.stopIfHolding()
-            await awdl.stop()
-            await helper.uninstall()
+            await releaseHelperHolds()
+            guard await helper.uninstall() else {
+                helperRecoveryFailed = true
+                helperAttention = .broken
+                return
+            }
             helper.install()
+            fanFloor.resumeAfterHelperReplacement()
+            closedLidLowPowerController.resumeAfterHelperReplacement()
+            helperOperationInFlight = false
             await verifyHelperAndFollowUp()
         }
     }

@@ -560,9 +560,21 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
     }
 
     public func setLowPowerHold(_ holding: Bool) -> Bool {
-        guard let version = pingVersion(), version >= HelperService.lowPowerMinProtocol else { return false }
+        guard let version = pingVersion() else { return false }
         // See setSleepHold: the state change after `call` needs its own release.
         defer { releaseConnectionUnlessHeld() }
+        guard version >= HelperService.lowPowerMinProtocol else {
+            if !holding {
+                // This daemon cannot hold this feature. Drop the stale want so
+                // its connection can retire; restoration still needs a newer
+                // daemon, so do not claim a confirmed release.
+                lock.lock()
+                wantsLowPowerHold = false
+                bumpGeneration(.lowPower)
+                lock.unlock()
+            }
+            return false
+        }
         if holding {
             lock.lock()
             wantsLowPowerHold = true
@@ -587,9 +599,21 @@ public final class XPCHelperClient: PrivilegedHelperCalling, @unchecked Sendable
     }
 
     public func setAdapterLowPowerHold(_ holding: Bool) -> Bool {
-        guard let version = pingVersion(), version >= HelperService.adapterLowPowerMinProtocol else { return false }
+        guard let version = pingVersion() else { return false }
         // See setSleepHold: the state change after `call` needs its own release.
         defer { releaseConnectionUnlessHeld() }
+        guard version >= HelperService.adapterLowPowerMinProtocol else {
+            if !holding {
+                // This daemon cannot hold this feature. Drop the stale want so
+                // its connection can retire; restoration still needs a newer
+                // daemon, so do not claim a confirmed release.
+                lock.lock()
+                wantsAdapterLowPowerHold = false
+                bumpGeneration(.adapterLowPower)
+                lock.unlock()
+            }
+            return false
+        }
         if holding {
             lock.lock()
             wantsAdapterLowPowerHold = true

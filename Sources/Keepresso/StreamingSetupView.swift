@@ -262,9 +262,8 @@ struct StreamingSetupView: View {
                 AdminAuthNote(purpose: L("pause AWDL (turn off the Wi-Fi AirDrop/Handoff radio hops)"))
             }
             if let error = model.awdl.lastError {
-                Text(error)
+                HelperFeatureNotice(model: model, message: error)
                     .font(.caption)
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

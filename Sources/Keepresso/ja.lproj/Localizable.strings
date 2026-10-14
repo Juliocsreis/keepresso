@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "バッテリー駆動を待っています。電源接続中の使用を有効にすると、電源アダプタも対象になります。";
 "Updating Low Power Mode…" = "低電力モードを更新中…";
 "Low Power Mode is active." = "低電力モードが有効です。";
+"Initializing the helper…" = "ヘルパーを初期化中…";
+"Updating the helper…" = "ヘルパーを更新中…";

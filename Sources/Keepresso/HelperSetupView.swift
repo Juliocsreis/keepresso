@@ -18,20 +18,17 @@ struct HelperStatusRows: View {
                     .accessibilityHidden(true)
                 Text("Helper installed. Closed-display mode, Keyboard Cleaner, fan boost, AWDL pausing, and DNS flush work without password prompts.")
                 Spacer(minLength: 8)
-                Button("Remove") { model.removeHelper() }
+                Button("Remove") { model.removeHelper() }.disabled(model.helperOperationInFlight)
             }
             // The helper ships inside the app, so an app update replaces it
             // on disk automatically; this shows only while the pre-update
             // service is still winding down (it can't while it holds a
             // switch, e.g. closed-display mode mid-session).
-            if model.helper.daemonOutdated {
-                Label(
-                    L("The helper service is updating itself to this version of Keepresso in the background. No reinstall or password is needed. Features new to this version wait until it finishes, usually under a minute."),
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if let hint = model.helperRecoveryHint {
+                Label(hint, systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption).foregroundStyle(.secondary)
             }
+
         case .requiresApproval:
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: "hourglass")
@@ -49,9 +46,8 @@ struct HelperStatusRows: View {
             }
         }
         if let error = model.helper.lastError {
-            Label(error, systemImage: "exclamationmark.triangle")
+            HelperFeatureNotice(model: model, message: error, helperOnly: true)
                 .font(.caption)
-                .foregroundStyle(.orange)
         }
     }
 }

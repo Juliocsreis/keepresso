@@ -29,6 +29,12 @@ public final class ClosedLidFanFloorController {
     @ObservationIgnored private var lastDropCheck: Date?
 
     public init(helper: PrivilegedHelperCalling) { self.helper = helper }
+    /// Explicit helper replacement starts a fresh firmware attempt. Ordinary
+    /// health checks do not clear a floor suspended after rejected fan writes.
+    public func resumeAfterHelperReplacement() {
+        previousBase = nil
+        holdingPercent = nil
+    }
     public func tick(percent: Int?, armed: Bool, supported: Bool, now: Date = Date()) {
         guard !stopping else { return }
         let base = ClosedLidFanFloor.requestedPercent(percent, armed: armed, supported: supported)
@@ -50,7 +56,8 @@ public final class ClosedLidFanFloorController {
             }
             return
         }
-        guard desired != requestedPercent || (failed && !suspended && desired != nil) else { return }
+        guard desired != requestedPercent || (desired != nil && holdingPercent == nil && !suspended)
+                || (failed && !suspended && desired != nil) else { return }
         if desired != nil, failed, let lastAttempt, now.timeIntervalSince(lastAttempt) < 15 { return }
         lastAttempt = now; busy = true
         activeTask = Task { [helper] in

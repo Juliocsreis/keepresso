@@ -26,7 +26,9 @@ struct HelperAttentionView: View {
     }
 
     private var stage: Stage {
-        if model.helper.isChecking { return .checking }
+        if model.helperOperationInFlight || model.helper.isChecking
+            || model.helperRecoveryPhase == .initializing || model.helperRecoveryPhase == .updating { return .checking }
+        if model.helperRecoveryPhase == .unavailable { return .broken }
         if model.helper.awaitingApproval { return .needsApproval }
         switch model.helperAttention {
         case .needsApproval: return .needsApproval
@@ -182,6 +184,7 @@ struct HelperAttentionView: View {
                 Button("Refresh") { model.verifyHelper() }
                     .disabled(model.helper.isChecking)
                 Button("Reinstall Helper") { model.reinstallHelper() }
+                    .disabled(model.helperOperationInFlight)
                     .keyboardShortcut(.defaultAction)
             }
         case .allSet:

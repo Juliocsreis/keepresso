@@ -814,9 +814,12 @@ private struct GeneralTab: View {
                     }
                     Text("Applies only with the lid closed and closed-display mode active. Heat boost can raise this floor; boost and pause settings above stay independent. Returns fan control to the system when the mode ends.")
                         .font(.caption).foregroundStyle(.secondary)
-                    if model.fanFloor.failed {
-                        Label("Fan minimum unavailable. Thermal protection remains unchanged.", systemImage: "exclamationmark.triangle")
-                            .font(.caption).foregroundStyle(.orange)
+                    if let hint = model.helperRecoveryHint {
+                        Label(hint, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if model.fanFloor.failed {
+                        HelperFeatureNotice(model: model, message: L("Fan minimum unavailable. Thermal protection remains unchanged."), helperOnly: true)
+                            .font(.caption)
                     } else if let active = model.fanFloor.holdingPercent {
                         Label(L("Minimum fan speed: %d%%", active), systemImage: "fan")
                             .font(.caption).foregroundStyle(.secondary)
@@ -870,9 +873,8 @@ private struct GeneralTab: View {
                     .shakes(on: lidRowShakes)
             }
             if let error = model.closedDisplayError {
-                Label(error, systemImage: "exclamationmark.triangle")
+                HelperFeatureNotice(model: model, message: error)
                     .font(.caption)
-                    .foregroundStyle(.orange)
             }
             if model.machineHasBattery && model.closedDisplayEnabled {
                 Picker(L("If the lid shuts"), selection: Binding(
@@ -903,9 +905,8 @@ private struct GeneralTab: View {
                     : L("switch the sleep override with the session"))
             }
             if let error = model.closedDisplayAutoError {
-                Label(error, systemImage: "exclamationmark.triangle")
+                HelperFeatureNotice(model: model, message: error)
                     .font(.caption)
-                    .foregroundStyle(.orange)
             }
             if model.machineHasBattery {
                 Toggle("Low Power Mode while the lid is closed", isOn: Binding(
@@ -942,8 +943,13 @@ private struct GeneralTab: View {
         switch model.closedLidLowPowerController.status {
         case .off: EmptyView()
         case .needsHelper:
-            Label("Install or update the administrator helper to use Low Power Mode.", systemImage: "lock")
-                .font(.caption).foregroundStyle(.secondary)
+            if let hint = model.helperRecoveryHint {
+                Label(hint, systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Label("Install or update the administrator helper to use Low Power Mode.", systemImage: "lock")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         case .waitingForClosedDisplay:
             Label("Waiting for closed-display mode to be active.", systemImage: "info.circle")
                 .font(.caption).foregroundStyle(.secondary)
@@ -960,8 +966,8 @@ private struct GeneralTab: View {
             Label("Low Power Mode is active.", systemImage: "leaf")
                 .font(.caption).foregroundStyle(.secondary)
         case .failed:
-            Label("Could not update Low Power Mode. Keepresso will retry.", systemImage: "exclamationmark.triangle")
-                .font(.caption).foregroundStyle(.orange)
+            HelperFeatureNotice(model: model, message: L("Could not update Low Power Mode. Keepresso will retry."), helperOnly: true)
+                .font(.caption)
         }
     }
 

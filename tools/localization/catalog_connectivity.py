@@ -128,3 +128,18 @@ Low Power Mode is active.|Az alacsony töltöttségű mód aktív.|El modo de ba
     key, *translations = line.split('|')
     assert len(translations) == len(LANGS), key
     APP[key] = dict(zip(LANGS, translations))
+
+APP['Initializing the helper…'] = dict(zip(LANGS, [
+    'A segéd indítása…', 'Iniciando el asistente…', 'Initialisation de l’assistant…',
+    'Helfer wird gestartet…', '正在初始化辅助程序…', 'Avvio dell’assistente…',
+    'ヘルパーを初期化中…', '도우미 초기화 중…', 'Запуск помощника…',
+    'Iniciando o assistente…', 'Yardımcı başlatılıyor…', 'Uruchamianie pomocnika…',
+    'Запуск помічника…', '正在初始化輔助程式…',
+]))
+APP['Updating the helper…'] = dict(zip(LANGS, [
+    'A segéd frissítése…', 'Actualizando el asistente…', 'Mise à jour de l’assistant…',
+    'Helfer wird aktualisiert…', '正在更新辅助程序…', 'Aggiornamento dell’assistente…',
+    'ヘルパーを更新中…', '도우미 업데이트 중…', 'Обновление помощника…',
+    'Atualizando o assistente…', 'Yardımcı güncelleniyor…', 'Aktualizowanie pomocnika…',
+    'Оновлення помічника…', '正在更新輔助程式…',
+]))

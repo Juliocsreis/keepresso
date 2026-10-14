@@ -916,3 +916,5 @@
 "Waiting for battery power. Enable plugged-in use to include the power adapter." = "Esperando alimentación por batería. Activa el uso conectado para incluir el adaptador.";
 "Updating Low Power Mode…" = "Actualizando el modo de bajo consumo…";
 "Low Power Mode is active." = "El modo de bajo consumo está activo.";
+"Initializing the helper…" = "Iniciando el asistente…";
+"Updating the helper…" = "Actualizando el asistente…";
