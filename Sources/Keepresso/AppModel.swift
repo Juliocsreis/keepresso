@@ -2894,6 +2894,11 @@ final class AppModel {
                 return
             }
             helper.install()
+            guard helperInstalled || helper.awaitingApproval else {
+                helperRecoveryFailed = true
+                helperAttention = .broken
+                return
+            }
             fanFloor.resumeAfterHelperReplacement()
             closedLidLowPowerController.resumeAfterHelperReplacement()
             helperOperationInFlight = false

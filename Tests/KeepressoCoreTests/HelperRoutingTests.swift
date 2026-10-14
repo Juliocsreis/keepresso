@@ -4,13 +4,13 @@ import Foundation
 
 // MARK: - Fakes
 
-private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendable {
+final class HelperRoutingTestClient: PrivilegedHelperCalling, @unchecked Sendable {
     private let lock = NSLock()
     private(set) var calls: [String] = []
     var pingSucceeds = true
     var holdSucceeds = true
     var fanDropped = false
-    var lowPowerBarrier: LowPowerCallBarrier?
+    var lowPowerBarrier: BlockingLowPowerTestCall?
 
     func ping() -> Bool {
         record("ping")
@@ -89,14 +89,16 @@ private final class FakeHelperClient: PrivilegedHelperCalling, @unchecked Sendab
     }
 }
 
-private final class LowPowerCallBarrier: @unchecked Sendable {
+final class BlockingLowPowerTestCall: @unchecked Sendable {
     private let lock = NSLock()
     private var began = false
     private let permit = DispatchSemaphore(value: 0)
     var started: Bool { lock.lock(); defer { lock.unlock() }; return began }
     func waitForRelease() {
         lock.lock(); began = true; lock.unlock()
-        _ = permit.wait(timeout: .now() + 3)
+        // Ordering is controlled by the test, not runner speed. The test's
+        // defer always releases this barrier even if it throws or is cancelled.
+        permit.wait()
     }
     func release() { permit.signal() }
 }
@@ -135,7 +137,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 // MARK: - Watchdog routing
 
 @Test func routedSleepWatchdogUsesDaemonWithoutAnyPromptWhenInstalled() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let fallback = FakeFallbackSleepWatchdog()
     let routed = RoutedSleepWatchdog(
         daemon: HelperDaemonSleepWatchdog(helper: client),
@@ -156,7 +158,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 }
 
 @Test func routedSleepWatchdogFallsBackWhenHelperMissing() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let fallback = FakeFallbackSleepWatchdog()
     let routed = RoutedSleepWatchdog(
         daemon: HelperDaemonSleepWatchdog(helper: client),
@@ -177,7 +179,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 @Test func routedWatchdogFailureMessageNamesTheActiveBackend() {
     // A failed engage through the daemon is an XPC failure, not a file-write
     // one; the message must match whichever backend is actually in use.
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let installed = LockedFlag(true)
     let routed = RoutedSleepWatchdog(
         daemon: HelperDaemonSleepWatchdog(helper: client),
@@ -191,7 +193,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 }
 
 @Test func routedWatchdogReleasesADaemonHoldEvenAfterUninstall() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let installed = LockedFlag(true)
     let routed = RoutedSleepWatchdog(
         daemon: HelperDaemonSleepWatchdog(helper: client),
@@ -209,7 +211,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 }
 
 @Test func routedSleepWatchdogKeepsHoldingWhenReleaseFails() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let routed = RoutedSleepWatchdog(
         daemon: HelperDaemonSleepWatchdog(helper: client),
         fallback: FakeFallbackSleepWatchdog(),
@@ -223,7 +225,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 }
 
 @Test func routedAWDLWatchdogMirrorsTheSleepRouting() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let routed = RoutedAWDLWatchdog(
         daemon: HelperDaemonAWDLWatchdog(helper: client),
         fallback: OsascriptAWDLWatchdog(
@@ -246,7 +248,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 // MARK: - Sleep-setting routing
 
 @Test func routedSleepControlReadsLocallyAndWritesThroughTheHelper() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let fallback = FakeFallbackSleepControl()
     let routed = RoutedSleepControl(
         helper: client,
@@ -267,7 +269,7 @@ private final class FakeFallbackSleepControl: SleepSettingControlling, @unchecke
 }
 
 @Test func routedSleepControlPromptsViaFallbackWhenHelperMissing() {
-    let client = FakeHelperClient()
+    let client = HelperRoutingTestClient()
     let fallback = FakeFallbackSleepControl()
     let routed = RoutedSleepControl(
         helper: client,
@@ -296,7 +298,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func closedLidLowPowerRestoresWhenItsConditionsEnd() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidLowPowerController(helper: helper)
     controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true)
     #expect(helper.calls.isEmpty)
@@ -310,7 +312,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func closedLidFanFloorIsInactiveOnFanlessDevicesAndReleasesOnOpening() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidFanFloorController(helper: helper)
     controller.tick(percent: 50, armed: true, supported: false)
     #expect(helper.calls.isEmpty)
@@ -335,7 +337,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func fanFloorDoesNotFightFirmwareThatDroppedTheHold() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidFanFloorController(helper: helper)
     let now = Date()
     controller.tick(percent: 50, armed: true, supported: true, now: now)
@@ -351,7 +353,7 @@ private final class LockedFlag: @unchecked Sendable {
     #expect(helper.calls == ["setFanHold(true, 50)", "fanHoldDropped", "setFanHold(false, 0)"])
 }
 @Test @MainActor func fanFloorStopReleasesBeforeHelperRemovalAndStaysStopped() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidFanFloorController(helper: helper)
     controller.tick(percent: 50, armed: true, supported: true)
     for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
@@ -362,7 +364,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func lowPowerUnknownReadingsDoNotUndoAConfirmedClosedLidHold() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidLowPowerController(helper: helper)
     controller.tick(enabled: true, lidClosed: nil, closedDisplayActive: nil, onBattery: nil, helperAvailable: true)
     #expect(helper.calls.isEmpty)
@@ -378,7 +380,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func lowPowerPluggedInOptInHoldsAndRestoresBothProfiles() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidLowPowerController(helper: helper)
     controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: false, helperAvailable: true)
     #expect(controller.status == .waitingForBattery)
@@ -397,7 +399,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func lowPowerTurningOffAfterFailedEngageStillReleasesRestoreDebt() async throws {
-    let helper = FakeHelperClient(); helper.holdSucceeds = false
+    let helper = HelperRoutingTestClient(); helper.holdSucceeds = false
     let controller = ClosedLidLowPowerController(helper: helper)
     controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true)
     for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
@@ -419,23 +421,8 @@ private final class LockedFlag: @unchecked Sendable {
     #expect(old.closedLidLowPower && !old.closedLidLowPowerOnAC)
 }
 
-@Test @MainActor func lowPowerDisarmDuringBatteryWriteNeverEngagesAdapterAndRestoresImmediately() async throws {
-    let helper = FakeHelperClient()
-    let barrier = LowPowerCallBarrier(); helper.lowPowerBarrier = barrier
-    let controller = ClosedLidLowPowerController(helper: helper)
-    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
-    for _ in 0..<100 { if barrier.started { break }; try await Task.sleep(for: .milliseconds(10)) }
-    #expect(barrier.started)
-    controller.tick(enabled: false, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
-    barrier.release()
-    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
-    #expect(!controller.holding && !controller.hasPendingRequests)
-    #expect(controller.status == .off)
-    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
-}
-
 @Test @MainActor func lowPowerDisarmBeforeWorkerStartsDoesNotWriteEitherProfile() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let controller = ClosedLidLowPowerController(helper: helper)
     controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
     controller.tick(enabled: false, lidClosed: false, closedDisplayActive: false, onBattery: true, helperAvailable: true, allowOnAC: true)
@@ -445,7 +432,7 @@ private final class LockedFlag: @unchecked Sendable {
 }
 
 @Test @MainActor func helperReplacementRearmsStoppedClosedLidControllersWithoutChangingTheirOptions() async throws {
-    let helper = FakeHelperClient()
+    let helper = HelperRoutingTestClient()
     let lowPower = ClosedLidLowPowerController(helper: helper)
     let floor = ClosedLidFanFloorController(helper: helper)
     lowPower.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)

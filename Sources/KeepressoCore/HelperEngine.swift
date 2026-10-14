@@ -500,11 +500,17 @@ public final class HelperEngine: @unchecked Sendable {
         if holding {
             if lowPowerHolders[profile, default: []].contains(client) { return true }
             if lowPowerHolders[profile, default: []].isEmpty {
+                guard let current = lowPower.mode(for: profile), (0...2).contains(current) else { return false }
+                // A restored or user-changed profile starts a new snapshot.
+                // Do not reuse stale debt if its marker could not be removed.
+                if state.markers().contains(marker), current != 1 {
+                    guard restoreLowPower(profile: profile) else { return false }
+                }
                 // Preserve outstanding restore debt instead of snapshotting our override.
                 if state.value(for: marker) == nil {
-                    guard let prior = lowPower.mode(for: profile), (0...2).contains(prior) else { return false }
-                    state.set(marker, value: String(prior))
-                    guard state.value(for: marker) == String(prior) else { return false }
+                    guard !state.markers().contains(marker) else { return false }
+                    state.set(marker, value: String(current))
+                    guard state.value(for: marker) == String(current) else { return false }
                 }
                 guard let value = state.value(for: marker),
                       let prior = Int(value), (0...2).contains(prior),
@@ -519,13 +525,13 @@ public final class HelperEngine: @unchecked Sendable {
 
     private func restoreLowPower(profile: LowPowerProfile) -> Bool {
         let marker: HelperRestoreMarker = profile == .battery ? .batteryLowPower : .adapterLowPower
-        guard let value = state.value(for: marker) else { return true }
+        guard let value = state.value(for: marker) else { return !state.markers().contains(marker) }
         guard let prior = Int(value), (0...2).contains(prior) else { return false }
         // Respect a setting changed by the user while the profile was held.
         guard let current = lowPower.mode(for: profile) else { return false }
         guard current != 1 || lowPower.setMode(prior, for: profile) else { return false }
         state.set(marker, value: nil)
-        return true
+        return !state.markers().contains(marker)
     }
 
     /// Take or release `client`'s hold on `awdl0 down`.

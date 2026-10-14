@@ -26,6 +26,7 @@ private final class FakeRestoreState: HelperRestoreStatePersisting, @unchecked S
     /// Marker to stored value; empty string is a presence-only marker, the
     /// same shape a legacy empty marker file has on disk.
     private var stored: [HelperRestoreMarker: String] = [:]
+    var rejectRemovals = false
 
     init(_ initial: Set<HelperRestoreMarker> = []) {
         for marker in initial { stored[marker] = "" }
@@ -50,6 +51,7 @@ private final class FakeRestoreState: HelperRestoreStatePersisting, @unchecked S
     func set(_ marker: HelperRestoreMarker, value: String?) {
         lock.lock()
         defer { lock.unlock() }
+        if value == nil && rejectRemovals { return }
         stored[marker] = value
     }
 }
@@ -899,6 +901,35 @@ private final class FakeBatteryLowPower: BatteryLowPowerControlling, @unchecked 
     control.mode = 0 // changed in System Settings while held
     #expect(engine.setLowPowerHold(client: 1, holding: false)); #expect(control.writes == [1])
     #expect(state.markers().isEmpty)
+}
+
+@Test func lowPowerFailedMarkerRemovalCannotReuseAnOldSnapshotOverUserSettings() {
+    for profile in [LowPowerProfile.battery, .adapter] {
+        let control = FakeBatteryLowPower(); control.mode = 0; control.adapter = 0
+        let state = FakeRestoreState()
+        let engine = HelperEngine(runner: FakeRunner(), state: state, lowPower: control)
+        let marker: HelperRestoreMarker = profile == .battery ? .batteryLowPower : .adapterLowPower
+        func hold(_ enabled: Bool) -> Bool {
+            profile == .battery
+                ? engine.setLowPowerHold(client: 1, holding: enabled)
+                : engine.setAdapterLowPowerHold(client: 1, holding: enabled)
+        }
+        #expect(hold(true))
+        state.rejectRemovals = true
+        #expect(!hold(false))
+        #expect(control.mode(for: profile) == 0)
+        #expect(state.value(for: marker) == "0")
+        // The user picks High Power while the old marker still exists.
+        if profile == .battery { control.mode = 2 } else { control.adapter = 2 }
+        #expect(!hold(true))
+        #expect(control.mode(for: profile) == 2)
+        state.rejectRemovals = false
+        #expect(hold(true))
+        #expect(state.value(for: marker) == "2")
+        #expect(hold(false))
+        #expect(control.mode(for: profile) == 2)
+        #expect(state.markers().isEmpty)
+    }
 }
 @Test func batteryLowPowerParserDoesNotReadTheAdapterSetting() {
     #expect(PMSetBatteryLowPowerControl.parseBatteryMode("Battery Power:\n lowpowermode 0\n highpowermode 1\nAC Power:\n lowpowermode 1") == 2)

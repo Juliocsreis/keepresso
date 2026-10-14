@@ -274,3 +274,21 @@ private func blockingValue<Value: Sendable>(_ work: @escaping @Sendable () -> Va
         #expect(delegate.helper.lowPowerCallCount == 1)
     }
 }
+
+// This blocking rendezvous shares the isolated XPC cohort so it cannot
+// occupy a cooperative worker while the full core suite needs the pool.
+@Test @MainActor func lowPowerDisarmDuringBatteryWriteNeverEngagesAdapterAndRestoresImmediately() async throws {
+    let helper = HelperRoutingTestClient()
+    let barrier = BlockingLowPowerTestCall(); helper.lowPowerBarrier = barrier
+    defer { barrier.release() }
+    let controller = ClosedLidLowPowerController(helper: helper)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    for _ in 0..<100 { if barrier.started { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(barrier.started)
+    controller.tick(enabled: false, lidClosed: false, closedDisplayActive: true, onBattery: true, helperAvailable: true, allowOnAC: true)
+    barrier.release()
+    for _ in 0..<100 { if !controller.busy { break }; try await Task.sleep(for: .milliseconds(10)) }
+    #expect(!controller.holding && !controller.hasPendingRequests)
+    #expect(controller.status == .off)
+    #expect(helper.calls == ["setLowPowerHold(true)", "setLowPowerHold(false)"])
+}
