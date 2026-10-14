@@ -9,8 +9,10 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
     let slowCallStarted = DispatchSemaphore(value: 0)
     let version: Int
     private var lowPowerCalls = 0
+    private var pingCalls = 0
     init(version: Int = HelperService.protocolVersion) { self.version = version }
     var lowPowerCallCount: Int { lock.lock(); defer { lock.unlock() }; return lowPowerCalls }
+    var pingCallCount: Int { lock.lock(); defer { lock.unlock() }; return pingCalls }
     @objc func setLowPowerHold(_ holding: Bool, reply: @escaping @Sendable (Bool) -> Void) {
         lock.lock(); lowPowerCalls += 1; lock.unlock()
         reply(true)
@@ -30,6 +32,7 @@ private final class OverlappingHelper: NSObject, @unchecked Sendable {
     }
 
     @objc func ping(reply: @escaping @Sendable (Int) -> Void) {
+        lock.lock(); pingCalls += 1; lock.unlock()
         reply(version)
     }
 
@@ -145,7 +148,16 @@ private final class BackgroundCall: @unchecked Sendable {
 // error handler answers the moment a connection is cancelled underneath).
 private let testCallTimeout: TimeInterval = 30
 
-@Test func completedHelperPingDoesNotCancelAnOverlappingWrite() {
+/// A semaphore wait on a Swift Testing worker can starve the anonymous
+/// listener's replies on small runners. Suspend the test while a dedicated
+/// thread performs each blocking call, including rendezvous and teardown waits.
+private func blockingValue<Value: Sendable>(_ work: @escaping @Sendable () -> Value) async -> Value {
+    await withCheckedContinuation { continuation in
+        Thread { continuation.resume(returning: work()) }.start()
+    }
+}
+
+@Test func completedHelperPingDoesNotCancelAnOverlappingWrite() async {
     let delegate = AnonymousHelperListener()
     let listener = NSXPCListener.anonymous()
     listener.delegate = delegate
@@ -156,17 +168,17 @@ private let testCallTimeout: TimeInterval = 30
         timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) }
     )
     let slow = BackgroundCall { client.setSleepDisabled(true) }
-    let started = delegate.helper.waitForSlowCall()
+    let started = await blockingValue { delegate.helper.waitForSlowCall() }
     #expect(started)
-    guard started else { _ = slow.value(); return }
-    #expect(client.ping())
+    guard started else { _ = await blockingValue { slow.value() }; return }
+    #expect(await blockingValue { client.ping() })
     // ping() has returned, including its connection-release housekeeping.
     // The other reply must still be deliverable on the shared connection.
     delegate.helper.finishSlowCall()
-    #expect(slow.value() == true)
+    #expect(await blockingValue { slow.value() } == true)
 }
 
-@Test func releasingTheLastHelperHoldDisconnectsForDaemonRetirement() {
+@Test func releasingTheLastHelperHoldDisconnectsForDaemonRetirement() async {
     let delegate = AnonymousHelperListener()
     let listener = NSXPCListener.anonymous()
     listener.delegate = delegate
@@ -176,33 +188,35 @@ private let testCallTimeout: TimeInterval = 30
     let client = XPCHelperClient(
         timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) }
     )
-    #expect(client.setSleepHold(true))
-    #expect(client.setSleepHold(false))
+    #expect(await blockingValue { client.setSleepHold(true) })
+    #expect(await blockingValue { client.setSleepHold(false) })
     // No further ping should be needed to let the old daemon retire.
-    #expect(delegate.waitForDisconnect())
+    #expect(await blockingValue { delegate.waitForDisconnect() })
 }
 
-@Test func lowPowerHoldKeepsItsConnectionUntilReleased() {
+@Test func lowPowerHoldKeepsItsConnectionUntilReleased() async {
     let delegate = AnonymousHelperListener()
     let listener = NSXPCListener.anonymous()
     listener.delegate = delegate; listener.resume()
     defer { listener.invalidate(); delegate.stop() }
     let endpoint = listener.endpoint
     let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
-    #expect(client.setLowPowerHold(true))
-    #expect(client.ping())
+    #expect(await blockingValue { client.setLowPowerHold(true) })
+    #expect(await blockingValue { client.ping() })
     #expect(delegate.activeConnections > 0)
-    #expect(client.setLowPowerHold(false))
-    #expect(delegate.waitForNoConnections())
+    #expect(await blockingValue { client.setLowPowerHold(false) })
+    #expect(await blockingValue { delegate.waitForNoConnections() })
     #expect(delegate.helper.lowPowerCallCount == 2)
 }
-@Test func lowPowerHoldDoesNotCallAnOlderDaemonsMissingVerb() {
+@Test func lowPowerHoldDoesNotCallAnOlderDaemonsMissingVerb() async {
     let delegate = AnonymousHelperListener(version: 9)
     let listener = NSXPCListener.anonymous()
     listener.delegate = delegate; listener.resume()
     defer { listener.invalidate(); delegate.stop() }
     let endpoint = listener.endpoint
     let client = XPCHelperClient(timeout: testCallTimeout, connectionFactory: { NSXPCConnection(listenerEndpoint: endpoint) })
-    #expect(!client.setLowPowerHold(true))
+    #expect(await blockingValue { !client.setLowPowerHold(true) })
+    // A failed rendezvous must not pass as a successful version guard.
+    #expect(delegate.helper.pingCallCount == 1)
     #expect(delegate.helper.lowPowerCallCount == 0)
 }
