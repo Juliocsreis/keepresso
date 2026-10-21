@@ -159,6 +159,7 @@ func unknownMenuKeysDoNotOptUsersIn(expanded: Bool) throws {
     #expect(decoded.activitySimulationMethod == .powerWarp)
     #expect(decoded.activitySimulationKeyCode == nil)
     #expect(decoded.activityPokeIdleMinutes == nil)
+    #expect(decoded.activityOnlyWhileBrewing == true)
     #expect(decoded.preventDisplaySleep == true)
 }
 
@@ -168,7 +169,8 @@ func unknownMenuKeysDoNotOptUsersIn(expanded: Bool) throws {
         simulateUserActivity: true,
         activitySimulationMethod: .specifiedKey,
         activitySimulationKeyCode: 113,
-        activityPokeIdleMinutes: 5
+        activityPokeIdleMinutes: 5,
+        activityOnlyWhileBrewing: false
     )
     let data = try JSONEncoder().encode(options)
     let decoded = try JSONDecoder().decode(SleepPreventionOptions.self, from: data)
@@ -176,6 +178,7 @@ func unknownMenuKeysDoNotOptUsersIn(expanded: Bool) throws {
     #expect(decoded.activitySimulationMethod == .specifiedKey)
     #expect(decoded.activitySimulationKeyCode == 113)
     #expect(decoded.activityPokeIdleMinutes == 5)
+    #expect(decoded.activityOnlyWhileBrewing == false)
     #expect(decoded.activityPokeKind == .key(113))
 }
 
@@ -393,8 +396,14 @@ func customizationUpgradePreservesAComplete125SettingsBlob(expanded: Bool) throw
     #expect(!upgraded.closedDisplayOnlyWhileBrewing)
     #expect(upgraded.withFreshInstallDefaults(hasStoredSettings: true) == upgraded)
 
+    // Fields added since 1.25 are dropped at both levels (top level and the
+    // nested options), so this checks every old field survives unchanged.
+    let oldOptionKeys = Set((oldFields["options"] as? [String: Any])?.keys ?? [:].keys)
     func previousReleaseFields(_ settings: KeepressoSettings) throws -> NSDictionary {
-        let encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as? [String: Any])
+        var encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as? [String: Any])
+        if let options = encoded["options"] as? [String: Any] {
+            encoded["options"] = options.filter { oldOptionKeys.contains($0.key) }
+        }
         return encoded.filter { oldFields.keys.contains($0.key) } as NSDictionary
     }
     #expect(try previousReleaseFields(upgraded) == oldFields as NSDictionary)
@@ -427,4 +436,61 @@ func customizationUpgradePreservesAComplete125SettingsBlob(expanded: Bool) throw
     #expect(restored.customizedMenuLayout == nil)
     #expect(restored.menuLayout == customized.menuLayout)
     #expect(try previousReleaseFields(restored) == oldFields as NSDictionary)
+}
+
+// MARK: - Presence scope compatibility
+
+@Test func presenceFromBeforeTheBrewingScopeKeepsSessionOnlyBehavior() throws {
+    // A 1.27 options blob has no scope key. Presence was session-only then,
+    // so it must decode as "Only while brewing" on and keep every other field.
+    let json = """
+    { "preventSystemSleep": true, "simulateUserActivity": true,
+      "activitySimulationMethod": "f15", "activityPokeIdleMinutes": 5 }
+    """
+    let decoded = try JSONDecoder().decode(SleepPreventionOptions.self, from: Data(json.utf8))
+    #expect(decoded.activityOnlyWhileBrewing)
+    #expect(decoded.simulateUserActivity)
+    #expect(decoded.activitySimulationMethod == .f15)
+    #expect(decoded.activityPokeIdleMinutes == 5)
+}
+
+@Test func unreadableOptionFieldsFallBackWithoutLosingTheRest() throws {
+    // A method only a newer build knows (read after a downgrade) and wrong
+    // types from a hand-edited import: each field falls back on its own.
+    let json = """
+    { "preventDisplaySleep": true, "simulateUserActivity": true,
+      "activitySimulationMethod": "someFutureMethod",
+      "activityOnlyWhileBrewing": "no", "dimFloor": "dark",
+      "activityPokeIdleMinutes": 7 }
+    """
+    let decoded = try JSONDecoder().decode(SleepPreventionOptions.self, from: Data(json.utf8))
+    #expect(decoded.activitySimulationMethod == .powerWarp)
+    #expect(decoded.activityOnlyWhileBrewing)
+    #expect(decoded.dimFloor == 0)
+    #expect(decoded.preventDisplaySleep)
+    #expect(decoded.simulateUserActivity)
+    #expect(decoded.activityPokeIdleMinutes == 7)
+}
+
+@Test func brokenOptionsNeverDiscardTheRestOfTheSettings() throws {
+    let json = """
+    { "options": "not an object", "triggersEnabled": true,
+      "reminderAfter": 1800, "hasOnboarded": true }
+    """
+    let decoded = try JSONDecoder().decode(KeepressoSettings.self, from: Data(json.utf8))
+    #expect(decoded.options == .default)
+    #expect(decoded.triggersEnabled)
+    #expect(decoded.reminderAfter == 1800)
+}
+
+@Test func presenceScopeSurvivesStoreAndBackupRoundTrips() throws {
+    var settings = KeepressoSettings()
+    settings.options.simulateUserActivity = true
+    settings.options.activityOnlyWhileBrewing = false
+    let stored = try JSONDecoder().decode(
+        KeepressoSettings.self, from: JSONEncoder().encode(settings))
+    #expect(stored.options.activityOnlyWhileBrewing == false)
+    let imported = try SettingsTransfer.importSettings(from:
+        SettingsTransfer.exportData(settings, appVersion: "1.28.0"))
+    #expect(imported.options.activityOnlyWhileBrewing == false)
 }

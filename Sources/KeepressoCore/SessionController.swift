@@ -174,9 +174,16 @@ public final class SessionController {
     private let brightness: BrightnessControlling
     private let now: () -> Date
 
-    /// When the keep-active poke last fired this session, so it runs on a slow
-    /// cadence (``activityPokeInterval``) rather than every reconcile.
+    /// When the keep-active poke last fired, so it runs on a slow cadence
+    /// (``activityPokeInterval``) rather than every reconcile. Kept across a
+    /// stop so presence between sessions holds the same cadence.
     private var lastActivityPokeAt: Date?
+
+    /// Set when a session end action fires (sleep the display, lock, screen
+    /// saver, sleep the Mac). Presence between sessions then holds until real
+    /// input, so a poke never wakes the display the action just slept or
+    /// types into the lock screen.
+    private var presenceHeldUntilInput = false
 
     /// The display brightness before dim-don't-sleep or the clamshell dark
     /// force lowered it, or `nil` when the panel is not currently held dark by
@@ -269,9 +276,10 @@ public final class SessionController {
     /// reactivate through the gate and lease demand on the next tick, and
     /// recording them would fight that ownership. Any explicit `start` or
     /// `stop` clears it, so user intent always wins over the remembered pause.
+    /// Options are not part of it: the session resumes with the live
+    /// ``options``, so a setting changed during the pause is kept.
     private var safetyPausedManual: (
         mode: SessionMode,
-        options: SleepPreventionOptions,
         startedAt: Date?,
         remindersFired: Int,
         reason: String
@@ -454,7 +462,6 @@ public final class SessionController {
         leaseHeld = false
         remindersFired = 0
         endingSoonFired = false
-        lastActivityPokeAt = nil
         // An explicit stop cancels a pending auto-resume: the user ended it,
         // so a later pause lift must not restart brewing behind their back.
         // The safety-pause paths re-record below, after this teardown.
@@ -492,7 +499,6 @@ public final class SessionController {
         let manualOwned = triggerGate == nil && !leaseHeld
         let snapshot = (
             mode: mode,
-            options: options,
             startedAt: startedAt,
             remindersFired: remindersFired,
             reason: resumeReason
@@ -509,7 +515,6 @@ public final class SessionController {
     private func resumeSafetyPausedSession(
         _ paused: (
             mode: SessionMode,
-            options: SleepPreventionOptions,
             startedAt: Date?,
             remindersFired: Int,
             reason: String
@@ -520,7 +525,6 @@ public final class SessionController {
         cancelPendingEndAction()
         leaseHeld = false
         mode = paused.mode
-        options = paused.options
         startedAt = paused.startedAt ?? instant
         isActive = true
         // Keep the nudge counter: the pause must not re-fire a one-shot
@@ -583,6 +587,7 @@ public final class SessionController {
         else { return }
         cancelPendingEndAction()
         guard instant.timeIntervalSince(due) <= Self.endActionStaleGrace else { return }
+        presenceHeldUntilInput = true
         endActor.perform(action)
     }
 
@@ -1069,16 +1074,31 @@ public final class SessionController {
     }
 
     /// Report user activity on a slow cadence while a keep-active session
-    /// runs, so software with its own idle timeout keeps the user present.
+    /// runs (or between sessions too, with the brewing scope off), so
+    /// software with its own idle timeout keeps the user present.
     /// Skipped while they are actually providing input (real input already
     /// counts, and a key tap or nudge then is the jitter to avoid). Once idle
     /// past ``activityIdleThreshold`` it pokes, then repeats on the method's
     /// interval. With the idle-only mode on (``SleepPreventionOptions/
     /// activityPokeIdleMinutes``) the bar rises to that many idle minutes
-    /// and a frontmost game suppresses the poke too. No-op unless active
-    /// and the option is on.
+    /// and a frontmost game suppresses the poke too. No-op unless the option
+    /// is on, and unless a session is active while scoped to brewing
+    /// (``SleepPreventionOptions/activityOnlyWhileBrewing``). Safety pauses
+    /// return from reconcile before this runs, so they always silence it.
     private func maybePokeActivity(at instant: Date, systemIdleSeconds: TimeInterval?, gameFrontmost: Bool) {
-        guard isActive, options.simulateUserActivity else { return }
+        if isActive { presenceHeldUntilInput = false }
+        guard options.simulateUserActivity,
+              isActive || !options.activityOnlyWhileBrewing else { return }
+        if !isActive {
+            // Between sessions, only the host's tick carries an idle reading.
+            // An out-of-band reconcile (lease doorbell, ending leases) has
+            // none and may land while the user is typing, so it never pokes.
+            guard let idle = systemIdleSeconds else { return }
+            if presenceHeldUntilInput {
+                guard idle < Self.activityIdleThreshold else { return }
+                presenceHeldUntilInput = false
+            }
+        }
         let idleOnlyMinutes = options.activityPokeIdleMinutes.flatMap { $0 > 0 ? $0 : nil }
         if let minutes = idleOnlyMinutes {
             // Idle-only mode: a frontmost game already reports the user as

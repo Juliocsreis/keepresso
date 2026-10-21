@@ -63,6 +63,13 @@ public struct SleepPreventionOptions: Equatable, Codable, Sendable {
     /// once past the few-seconds activity threshold.
     public var activityPokeIdleMinutes: Int?
 
+    /// Scope keep-active to running sessions (the default). Turned off, the
+    /// poke also runs while nothing is brewing, so the user stays present
+    /// between sessions too. Each poke counts as user activity to macOS as
+    /// well, so the Mac then won't idle-sleep while the option is on. Safety
+    /// pauses (battery, heat) still silence it.
+    public var activityOnlyWhileBrewing: Bool
+
     public init(
         preventSystemSleep: Bool = true,
         preventDisplaySleep: Bool = false,
@@ -72,7 +79,8 @@ public struct SleepPreventionOptions: Equatable, Codable, Sendable {
         simulateUserActivity: Bool = false,
         activitySimulationMethod: ActivitySimulationMethod = .powerWarp,
         activitySimulationKeyCode: Int? = nil,
-        activityPokeIdleMinutes: Int? = nil
+        activityPokeIdleMinutes: Int? = nil,
+        activityOnlyWhileBrewing: Bool = true
     ) {
         self.preventSystemSleep = preventSystemSleep
         self.preventDisplaySleep = preventDisplaySleep
@@ -83,6 +91,7 @@ public struct SleepPreventionOptions: Equatable, Codable, Sendable {
         self.activitySimulationMethod = activitySimulationMethod
         self.activitySimulationKeyCode = activitySimulationKeyCode
         self.activityPokeIdleMinutes = activityPokeIdleMinutes
+        self.activityOnlyWhileBrewing = activityOnlyWhileBrewing
     }
 
     /// The poke to perform for the current method. A specified key with no
@@ -113,27 +122,31 @@ public struct SleepPreventionOptions: Equatable, Codable, Sendable {
         case preventSystemSleep, preventDisplaySleep, allowScreenSaverAfter
         case dimDisplayAfter, dimFloor, simulateUserActivity
         case activitySimulationMethod, activitySimulationKeyCode
-        case activityPokeIdleMinutes
+        case activityPokeIdleMinutes, activityOnlyWhileBrewing
     }
 
-    /// Forgiving decoder: each field falls back to its default when absent, so a
-    /// settings blob saved by an older build (before a field existed) still
-    /// decodes instead of throwing and resetting the whole configuration.
+    /// Forgiving decoder: each field falls back to its default when absent
+    /// (a blob saved by an older build) or unreadable (a wrong type, or an
+    /// enum case only a newer build knows, read after a downgrade). Options
+    /// sit inside the one settings blob, so a throw here would reset the
+    /// user's whole configuration, not just this field.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        preventSystemSleep = try c.decodeIfPresent(Bool.self, forKey: .preventSystemSleep) ?? true
-        preventDisplaySleep = try c.decodeIfPresent(Bool.self, forKey: .preventDisplaySleep) ?? false
+        preventSystemSleep = (try? c.decodeIfPresent(Bool.self, forKey: .preventSystemSleep)) ?? true
+        preventDisplaySleep = (try? c.decodeIfPresent(Bool.self, forKey: .preventDisplaySleep)) ?? false
         allowScreenSaverAfter = Self.sanitizedInterval(
-            try c.decodeIfPresent(TimeInterval.self, forKey: .allowScreenSaverAfter))
+            try? c.decodeIfPresent(TimeInterval.self, forKey: .allowScreenSaverAfter))
         dimDisplayAfter = Self.sanitizedInterval(
-            try c.decodeIfPresent(TimeInterval.self, forKey: .dimDisplayAfter))
-        dimFloor = min(max(try c.decodeIfPresent(Double.self, forKey: .dimFloor) ?? 0, 0), 1)
-        simulateUserActivity = try c.decodeIfPresent(Bool.self, forKey: .simulateUserActivity) ?? false
-        activitySimulationMethod = try c.decodeIfPresent(
-            ActivitySimulationMethod.self, forKey: .activitySimulationMethod) ?? .powerWarp
-        activitySimulationKeyCode = try c.decodeIfPresent(Int.self, forKey: .activitySimulationKeyCode)
-        activityPokeIdleMinutes = try c.decodeIfPresent(Int.self, forKey: .activityPokeIdleMinutes)
+            try? c.decodeIfPresent(TimeInterval.self, forKey: .dimDisplayAfter))
+        dimFloor = min(max((try? c.decodeIfPresent(Double.self, forKey: .dimFloor)) ?? 0, 0), 1)
+        simulateUserActivity = (try? c.decodeIfPresent(Bool.self, forKey: .simulateUserActivity)) ?? false
+        // Raw string, not the enum, so an unknown method falls back here.
+        activitySimulationMethod = (try? c.decodeIfPresent(String.self, forKey: .activitySimulationMethod))
+            .flatMap(ActivitySimulationMethod.init(rawValue:)) ?? .powerWarp
+        activitySimulationKeyCode = try? c.decodeIfPresent(Int.self, forKey: .activitySimulationKeyCode)
+        activityPokeIdleMinutes = (try? c.decodeIfPresent(Int.self, forKey: .activityPokeIdleMinutes))
             .map { min(max($0, 0), 24 * 60) }
+        activityOnlyWhileBrewing = (try? c.decodeIfPresent(Bool.self, forKey: .activityOnlyWhileBrewing)) ?? true
     }
 
     /// A decoded idle threshold: finite, positive, and bounded to a real

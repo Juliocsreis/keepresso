@@ -99,6 +99,127 @@ private final class FakeBrightness: BrightnessControlling {
     #expect(activity.pokeCount == 2)
 }
 
+@MainActor
+@Test func keepActiveStaysQuietBetweenSessionsByDefault() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let controller = SessionController(assertions: FakeAssertions(), activity: activity, now: { clock.now })
+    controller.options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    // Only while brewing is the default: nothing running, nothing posted.
+    clock.advance(120)
+    controller.reconcile(systemIdleSeconds: 120)
+    #expect(activity.pokeCount == 0)
+
+    controller.start()
+    #expect(activity.pokeCount == 1)
+    controller.stop()
+    clock.advance(120)
+    controller.reconcile(systemIdleSeconds: 120)
+    #expect(activity.pokeCount == 1) // stopped: quiet again
+}
+
+@MainActor
+@Test func keepActivePokesBetweenSessionsWhenNotScopedToBrewing() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let controller = SessionController(assertions: FakeAssertions(), activity: activity, now: { clock.now })
+    var options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    options.activityOnlyWhileBrewing = false
+    controller.options = options
+
+    // Idle with no session: still pokes, on the usual cadence.
+    clock.advance(30)
+    controller.reconcile(systemIdleSeconds: 30)
+    #expect(activity.pokeCount == 1)
+    controller.reconcile(systemIdleSeconds: 30)
+    #expect(activity.pokeCount == 1)
+    clock.advance(SessionController.activityPokeInterval)
+    controller.reconcile(systemIdleSeconds: 60)
+    #expect(activity.pokeCount == 2)
+    #expect(!controller.isActive) // presence alone never starts a session
+
+    // The user is at the keyboard: no nudge, same as during a session.
+    clock.advance(120)
+    controller.reconcile(systemIdleSeconds: 1)
+    #expect(activity.pokeCount == 2)
+}
+
+@MainActor
+@Test func keepActiveBetweenSessionsHonorsTheBatteryPause() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let controller = SessionController(assertions: FakeAssertions(), activity: activity, now: { clock.now })
+    var options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    options.activityOnlyWhileBrewing = false
+    controller.options = options
+    controller.pauseBelowBatteryPercent = 20
+
+    // Below the cutoff: the pause owns sleep, so presence must not keep the
+    // Mac up by declaring activity.
+    clock.advance(60)
+    controller.reconcile(systemIdleSeconds: 60, battery: .discharging(10))
+    clock.advance(60)
+    controller.reconcile(systemIdleSeconds: 120, battery: .discharging(10))
+    #expect(controller.pausedByBattery)
+    #expect(activity.pokeCount == 0)
+
+    // Plugged in: the pause lifts and presence resumes.
+    clock.advance(60)
+    controller.reconcile(systemIdleSeconds: 180, battery: .onAC)
+    #expect(activity.pokeCount == 1)
+}
+
+@MainActor
+@Test func keepActiveBetweenSessionsNeedsAnIdleReading() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let controller = SessionController(assertions: FakeAssertions(), activity: activity, now: { clock.now })
+    var options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    options.activityOnlyWhileBrewing = false
+    controller.options = options
+
+    // An out-of-band reconcile (a lease doorbell) carries no idle reading
+    // and may land mid-typing: it must not tap a key.
+    clock.advance(60)
+    controller.reconcile()
+    #expect(activity.pokeCount == 0)
+    controller.reconcile(systemIdleSeconds: 60)
+    #expect(activity.pokeCount == 1)
+}
+
+@MainActor
+@Test func keepActiveBetweenSessionsHoldsAfterTheEndActionUntilInput() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let endActor = RecordingEndActor()
+    let controller = SessionController(
+        assertions: FakeAssertions(), activity: activity, endActor: endActor, now: { clock.now })
+    var options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    options.activityOnlyWhileBrewing = false
+    controller.options = options
+    controller.endAction = .sleepDisplay
+
+    controller.start(mode: .timed(duration: 60))
+    clock.advance(60)
+    controller.reconcile(systemIdleSeconds: 60)
+    #expect(!controller.isActive)
+    clock.advance(SessionController.endActionDebounce)
+    controller.reconcile(systemIdleSeconds: 63)
+    #expect(endActor.performed == [.sleepDisplay])
+    let afterAction = activity.pokeCount
+
+    // The display just slept: no poke may wake it while the user is away.
+    clock.advance(600)
+    controller.reconcile(systemIdleSeconds: 663)
+    #expect(activity.pokeCount == afterAction)
+
+    // Real input lifts the hold, and presence resumes once idle again.
+    controller.reconcile(systemIdleSeconds: 1)
+    clock.advance(30)
+    controller.reconcile(systemIdleSeconds: 30)
+    #expect(activity.pokeCount == afterAction + 1)
+}
+
 // MARK: - Idle-only keep-active mode
 
 @MainActor
@@ -936,6 +1057,25 @@ private final class StubGate: TriggerEvaluating {
     #expect(controller.pausedByBattery == false)
     #expect(controller.isActive)
     #expect(fake.held == [.system])
+}
+
+@MainActor
+@Test func batteryPauseResumeKeepsOptionsChangedDuringThePause() {
+    let (controller, fake, _) = makeController()
+    controller.pauseBelowBatteryPercent = 20
+    controller.start()
+    controller.reconcile(battery: .discharging(15))
+    #expect(controller.isActive == false)
+
+    // The user changes a setting while paused: the resumed session uses it
+    // rather than the options it had when the pause began.
+    controller.options.preventDisplaySleep = true
+    controller.options.activityOnlyWhileBrewing = false
+    controller.reconcile(battery: .onAC)
+    #expect(controller.isActive)
+    #expect(controller.options.preventDisplaySleep)
+    #expect(controller.options.activityOnlyWhileBrewing == false)
+    #expect(fake.held == [.system, .display])
 }
 
 @MainActor

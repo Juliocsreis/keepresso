@@ -263,7 +263,9 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
     /// adding settings doesn't discard a user's older saved configuration.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        options = try c.decodeIfPresent(SleepPreventionOptions.self, forKey: .options) ?? .default
+        // Options decode per field and never throw on a bad value, but a
+        // non-object here (hand-edited import) must not cost the rest either.
+        options = (try? c.decodeIfPresent(SleepPreventionOptions.self, forKey: .options)) ?? .default
         defaultMode = Self.sanitizedMode(
             try c.decodeIfPresent(SessionMode.self, forKey: .defaultMode) ?? .indefinite)
         triggersEnabled = try c.decodeIfPresent(Bool.self, forKey: .triggersEnabled) ?? false

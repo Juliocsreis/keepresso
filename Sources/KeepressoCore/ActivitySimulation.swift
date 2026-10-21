@@ -73,7 +73,8 @@ public enum AccessibilityTrust {
 /// seam. Tests use a recording fake.
 public protocol ActivitySimulating: AnyObject {
     /// Report user activity now. Called on a slow cadence while a keep-active
-    /// session runs, never every tick.
+    /// session runs (and between sessions with the brewing scope off), never
+    /// every tick.
     func poke(_ kind: ActivityPokeKind)
 }
 

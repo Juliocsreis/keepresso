@@ -3,6 +3,25 @@
 All notable changes to Keepresso are documented here, grouped by release.
 Versions follow [Semantic Versioning](https://semver.org).
 
+## [1.28.0] - 2026-10-22
+
+### Added
+
+- **Presence, only while brewing.** A new "Only while brewing" switch under
+  Keep me active, on by default so presence follows your keep-awake sessions
+  as before. Turn it off to stay present between sessions too. That can keep
+  your Mac from sleeping, so low-battery and heat pauses still stop it, and
+  it waits for you after a session's end action sleeps the display or locks
+  the screen.
+
+### Fixed
+
+- Keep your settings when a single keep-awake option can't be read, for
+  example after moving between Keepresso versions or importing an edited
+  backup. Only that option returns to its default.
+- Keep settings you change while a session is paused for low battery or
+  heat. The resumed session used to bring back the earlier ones.
+
 ## [1.27.0] - 2026-10-14
 
 ### Added
