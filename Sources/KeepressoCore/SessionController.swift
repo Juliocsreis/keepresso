@@ -184,6 +184,11 @@ public final class SessionController {
     /// input, so a poke never wakes the display the action just slept or
     /// types into the lock screen.
     private var presenceHeldUntilInput = false
+    /// The previous HID idle reading while held. Real input shows up as a
+    /// reading below it. A short idle alone is not enough: a key or
+    /// mouse event this app posted just before the action also resets HID
+    /// idle time, and must not count as the user coming back.
+    private var presenceHeldIdle: TimeInterval?
 
     /// The display brightness before dim-don't-sleep or the clamshell dark
     /// force lowered it, or `nil` when the panel is not currently held dark by
@@ -588,6 +593,7 @@ public final class SessionController {
         cancelPendingEndAction()
         guard instant.timeIntervalSince(due) <= Self.endActionStaleGrace else { return }
         presenceHeldUntilInput = true
+        presenceHeldIdle = nil
         endActor.perform(action)
     }
 
@@ -1094,9 +1100,18 @@ public final class SessionController {
             // An out-of-band reconcile (lease doorbell, ending leases) has
             // none and may land while the user is typing, so it never pokes.
             guard let idle = systemIdleSeconds else { return }
+            // An end action is about to fire: a poke now is undone by it, and
+            // a posted event would only blur the input check below.
+            guard pendingEndAction == nil else { return }
             if presenceHeldUntilInput {
-                guard idle < Self.activityIdleThreshold else { return }
+                // Nothing is posted while held, so idle dropping below the
+                // previous reading can only be real input.
+                guard let previous = presenceHeldIdle, idle < previous else {
+                    presenceHeldIdle = idle
+                    return
+                }
                 presenceHeldUntilInput = false
+                presenceHeldIdle = nil
             }
         }
         let idleOnlyMinutes = options.activityPokeIdleMinutes.flatMap { $0 > 0 ? $0 : nil }

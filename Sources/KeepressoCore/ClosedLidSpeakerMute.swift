@@ -26,8 +26,11 @@ public final class CoreAudioBuiltInSpeakers: BuiltInSpeakerMuting {
     public init() {}
 
     public func isMuted() -> Bool? {
-        guard let device = speakerDevice() else { return nil }
-        var address = Self.muteAddress
+        speakerDevice().flatMap(Self.isMuted)
+    }
+
+    private static func isMuted(_ device: AudioObjectID) -> Bool? {
+        var address = muteAddress
         var value: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
         guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr else { return nil }
@@ -44,8 +47,8 @@ public final class CoreAudioBuiltInSpeakers: BuiltInSpeakerMuting {
         // still show the old value. An accepted mute counts as landed: calling
         // it failed would drop the marker and strand the speakers muted. An
         // unmute is read back, since a stale read only makes the release retry
-        // on the next tick, which then finds the speakers unmuted.
-        return muted || isMuted() == false
+        // a little later, which then finds the speakers unmuted.
+        return muted || Self.isMuted(device) == false
     }
 
     private static var muteAddress: AudioObjectPropertyAddress {
@@ -132,7 +135,7 @@ public final class FileSpeakerMuteMarker: SpeakerMuteMarking {
     }
 
     public var isSet: Bool { file.isPresent }
-    public func set() -> Bool { file.create() && file.isPresent }
+    public func set() -> Bool { file.create() }
     public func clear() { file.remove() }
 }
 
@@ -221,7 +224,12 @@ public final class ClosedLidSpeakerMuteController {
         if let now, !probeAllowed(now) { return }
         switch speakers.isMuted() {
         case true?:
-            guard speakers.setMuted(false) else { return }
+            guard speakers.setMuted(false) else {
+                // Same backoff as unreachable speakers: each attempt is a
+                // full device scan, too much to repeat every second.
+                if let now { nextProbeAt = now.addingTimeInterval(Self.unreachableRetry) }
+                return
+            }
         case nil:
             if let now { nextProbeAt = now.addingTimeInterval(Self.unreachableRetry) }
             return

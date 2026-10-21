@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# render-dmg-background.sh — render the disk image background at 1x and 2x.
+# render-dmg-background.sh: render the disk image background at 1x and 2x.
 #
 #   ./scripts/render-dmg-background.sh
 #

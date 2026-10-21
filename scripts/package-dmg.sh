@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# package-dmg.sh — wrap Keepresso.app in the installer disk image.
+# package-dmg.sh: wrap Keepresso.app in the installer disk image.
 #
 #   ./scripts/package-dmg.sh <app-bundle> <output.dmg> [volume-name]
 #
@@ -44,13 +44,17 @@ find_python() {
   return 1
 }
 
+# Rebuilt when the pins change or its interpreter has gone (a Python upgrade
+# removes the one the venv links to), not just when it is missing.
 VENV="$ROOT_DIR/.build/dmgbuild-venv"
-if [ ! -x "$VENV/bin/dmgbuild" ]; then
+if ! cmp -s "$DMG_DIR/requirements.txt" "$VENV/requirements.txt" \
+  || ! "$VENV/bin/python" -c 'import dmgbuild' 2>/dev/null; then
   PYTHON="$(find_python)" || die "dmgbuild needs Python 3.10 or newer (brew install python)"
   rm -rf "$VENV"
   "$PYTHON" -m venv "$VENV"
   "$VENV/bin/pip" install --quiet --disable-pip-version-check \
     --require-hashes --only-binary :all: -r "$DMG_DIR/requirements.txt"
+  cp "$DMG_DIR/requirements.txt" "$VENV/requirements.txt"
 fi
 
 STAGE="$(mktemp -d)"
@@ -62,7 +66,7 @@ ditto "$APP" "$STAGE/$(basename "$APP")"
 
 # One TIFF holding both resolutions, so Finder picks the sharp one on Retina.
 tiffutil -cathidpicheck "$DMG_DIR/background.png" "$DMG_DIR/background@2x.png" \
-  -out "$STAGE/background.tiff" > /dev/null 2>&1
+  -out "$STAGE/background.tiff" > /dev/null 2>&1 || die "tiffutil could not build the background"
 
 rm -f "$DMG"
 # hdiutil warns that each of its verbs is deprecated on every call. Drop those

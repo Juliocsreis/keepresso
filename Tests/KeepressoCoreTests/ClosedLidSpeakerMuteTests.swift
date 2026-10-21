@@ -138,15 +138,22 @@ private func makeController(muted: Bool? = false) -> (ClosedLidSpeakerMuteContro
 @MainActor
 @Test func speakerMuteRetriesAFailedUnmuteAndKeepsTheMarker() {
     let (controller, speakers, marker) = makeController()
-    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true)
+    let start = Date(timeIntervalSince1970: 1_000_000)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start)
     speakers.refuseSets = true
-    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true)
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, now: start.addingTimeInterval(1))
     #expect(speakers.muted == true)
     #expect(controller.holding)
     #expect(marker.isSet)
 
+    // A failed unmute backs off like unreachable speakers, so the device scan
+    // does not run every tick.
     speakers.refuseSets = false
-    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true)
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, now: start.addingTimeInterval(2))
+    #expect(speakers.muted == true)
+    #expect(speakers.sets == [true, false])
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true,
+                    now: start.addingTimeInterval(1 + ClosedLidSpeakerMuteController.unreachableRetry))
     #expect(speakers.muted == false)
     #expect(!marker.isSet)
 }
@@ -282,4 +289,34 @@ private func makeController(muted: Bool? = false) -> (ClosedLidSpeakerMuteContro
     #expect(marker.isSet)
     marker.clear()
     #expect(!marker.isSet)
+}
+
+private final class CountingLid: LidStateReading, @unchecked Sendable {
+    var closed: Bool? = true
+    private(set) var reads = 0
+    func isClosed() -> Bool? { reads += 1; return closed }
+}
+
+private final class FakeMonotonic: @unchecked Sendable {
+    var nanos: UInt64 = 100_000_000_000
+}
+
+@Test func cachedLidStateSharesOneReadWithinItsWindow() {
+    let source = CountingLid()
+    let clock = FakeMonotonic()
+    let lid = CachedLidState(source, ttl: 0.5, clock: { clock.nanos })
+    #expect(lid.isClosed() == true)
+    #expect(lid.isClosed() == true)
+    #expect(source.reads == 1) // ticker and features share the reading
+
+    source.closed = false
+    clock.nanos += 600_000_000 // next tick
+    #expect(lid.isClosed() == false)
+    #expect(source.reads == 2)
+
+    // A clock that somehow runs backwards never pins a stale reading.
+    clock.nanos -= 10_000_000_000
+    source.closed = true
+    #expect(lid.isClosed() == true)
+    #expect(source.reads == 3)
 }

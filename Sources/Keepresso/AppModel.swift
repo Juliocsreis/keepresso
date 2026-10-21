@@ -268,7 +268,9 @@ final class AppModel {
         return controller
     }()
     @ObservationIgnored private(set) lazy var closedLidLowPowerController = ClosedLidLowPowerController(helper: helperClient)
-    private let connectivityLid = IORegistryLidState()
+    /// The one lid reader for the app: the session ticker and the closed-lid
+    /// features share its reading within a tick.
+    let lidState = CachedLidState()
     private let connectivityPower = IOKitPowerSourceMonitor()
     @ObservationIgnored private var sawLowPowerHelperError = false
 
@@ -300,21 +302,21 @@ final class AppModel {
     /// handled lid-closed stretch and a re-enable (setter or import) mutes
     /// again. With the feature off the lid is never read and the tick costs
     /// nothing unless a mute is still held.
+    @ObservationIgnored private var checkedSpeakerMuteMarker = false
     func speakerMuteTick() {
+        // A crashed run's mute is taken back on the first tick, not at launch:
+        // a copy relocating itself to /Applications must leave the marker to
+        // the copy that stays (it would otherwise unmute on its way out), and
+        // a relocation that fails gets it here once it stops relocating.
+        if !checkedSpeakerMuteMarker, !AppRelocator.isRelocating {
+            checkedSpeakerMuteMarker = true
+            speakerMute.restoreIfNeeded()
+        }
         let enabled = settings.closedLidMuteSpeakers
         speakerMute.tick(enabled: enabled,
             lidClosed: enabled ? lidClosedThisTick() : nil, closedDisplayActive: closedDisplay.isEnabled)
     }
-    /// One IORegistry lid read shared by the closed-lid features (Low Power,
-    /// fan floor, speaker mute) within a tick, instead of one each.
-    @ObservationIgnored private var lidReading: (at: Date, closed: Bool?)?
-    private func lidClosedThisTick() -> Bool? {
-        let now = Date()
-        if let lidReading, now.timeIntervalSince(lidReading.at) < 0.5 { return lidReading.closed }
-        let closed = connectivityLid.isClosed()
-        lidReading = (now, closed)
-        return closed
-    }
+    private func lidClosedThisTick() -> Bool? { lidState.isClosed() }
     func saveHotspotPassword(_ password: String, ssid: String) async throws {
         try await Task.detached { [hotspotCredentials] in
             try hotspotCredentials.save(password: password, for: ssid)

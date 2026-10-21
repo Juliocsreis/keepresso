@@ -220,6 +220,46 @@ private final class FakeBrightness: BrightnessControlling {
     #expect(activity.pokeCount == afterAction + 1)
 }
 
+@MainActor
+@Test func keepActiveHoldAfterTheEndActionIgnoresItsOwnPostedInput() {
+    let clock = Clock()
+    let activity = FakeActivity()
+    let endActor = RecordingEndActor()
+    let controller = SessionController(
+        assertions: FakeAssertions(), activity: activity, endActor: endActor, now: { clock.now })
+    var options = SleepPreventionOptions(preventSystemSleep: true, simulateUserActivity: true)
+    options.activityOnlyWhileBrewing = false
+    controller.options = options
+    controller.endAction = .sleepDisplay
+
+    controller.start(mode: .timed(duration: 60))
+    clock.advance(60)
+    controller.reconcile(systemIdleSeconds: 60)
+    #expect(!controller.isActive)
+    let sessionPokes = activity.pokeCount
+    // Nothing is posted while the end action is pending.
+    clock.advance(1)
+    controller.reconcile(systemIdleSeconds: 61)
+    #expect(activity.pokeCount == sessionPokes)
+    clock.advance(SessionController.endActionDebounce)
+    controller.reconcile(systemIdleSeconds: 4)
+    #expect(endActor.performed == [.sleepDisplay])
+
+    // A key posted just before the action reset HID idle, so idle reads short
+    // after it. That is not the user coming back: idle only keeps rising.
+    for idle in [5.0, 6, 30, 90] as [TimeInterval] {
+        clock.advance(30)
+        controller.reconcile(systemIdleSeconds: idle)
+    }
+    #expect(activity.pokeCount == sessionPokes)
+
+    // Real input drops idle below the last reading and lifts the hold.
+    controller.reconcile(systemIdleSeconds: 1)
+    clock.advance(30)
+    controller.reconcile(systemIdleSeconds: 30)
+    #expect(activity.pokeCount == sessionPokes + 1)
+}
+
 // MARK: - Idle-only keep-active mode
 
 @MainActor
