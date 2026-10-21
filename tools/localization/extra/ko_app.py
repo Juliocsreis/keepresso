@@ -768,3 +768,9 @@ APP.update({
 APP.update({
     "Also runs between sessions, which can keep the Mac from sleeping.": "세션 사이에도 실행되므로 Mac이 잠들지 않을 수 있습니다.",
 })
+
+# Closed-lid speaker mute
+APP.update({
+    "Mute built-in speakers while the lid is closed": "덮개를 닫으면 내장 스피커 음소거",
+    "Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.": "덮개가 닫히고 디스플레이 닫힘 모드가 활성화되면 내장 스피커를 음소거합니다. 헤드폰과 다른 출력은 계속 재생됩니다. 덮개를 열거나 모드가 끝나면 음소거를 해제하며, 직접 음소거해 둔 경우에는 그대로 둡니다.",
+})

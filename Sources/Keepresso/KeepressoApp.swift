@@ -183,6 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.model.fireAgentIdleHookIfNeeded()
             self?.model.automationSyncTick()
             self?.model.connectivityTick()
+            self?.model.speakerMuteTick()
             self?.model.pulseMenuPanelIfVisible()
         }
     )
@@ -229,6 +230,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // If restore could not land, put the overlay back so Unlock is
         // reachable instead of leaving special keys dead with no chrome.
         model.keyboardLock.restoreIfNeeded()
+        // Same for a closed-lid speaker mute a crashed run never undid.
+        model.speakerMute.restoreIfNeeded()
         if model.keyboardLock.isLocked {
             model.suspendHotKeyForKeyboardLock()
             model.showKeyboardLockOverlay()
@@ -369,6 +372,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // level in the watchdog rather than the session. A no-op unless the
         // lid is shut under that policy right now.
         model.closedDisplay.restoreDisplayBrightness()
+        // Unmute speakers muted for a closed lid. A no-op unless held; if it
+        // can't land now, the marker makes the next launch retry.
+        model.speakerMute.release()
         // A duplicate handing over to the copy that stays up must not write
         // "stopped" into the shared widget state: that copy owns it and may be
         // keeping the Mac awake right now.

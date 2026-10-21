@@ -921,3 +921,9 @@ APP.update({
 APP.update({
     "Also runs between sessions, which can keep the Mac from sleeping.": "Funziona anche tra una sessione e l’altra, quindi può impedire al Mac di andare in stop.",
 })
+
+# Closed-lid speaker mute
+APP.update({
+    "Mute built-in speakers while the lid is closed": "Disattiva l’audio degli altoparlanti integrati con il coperchio chiuso",
+    "Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.": "Disattiva l’audio degli altoparlanti integrati con il coperchio chiuso e la modalità a schermo chiuso attiva. Le cuffie e le altre uscite continuano a riprodurre. Riattiva l’audio quando apri il coperchio o termina la modalità, a meno che tu non l’avessi già disattivato.",
+})

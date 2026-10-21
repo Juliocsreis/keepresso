@@ -929,6 +929,11 @@ private struct GeneralTab: View {
                 if model.closedLidLowPower || model.closedLidLowPowerController.failed {
                     lowPowerStatus
                 }
+                Toggle("Mute built-in speakers while the lid is closed", isOn: Binding(
+                    get: { model.closedLidMuteSpeakers }, set: { model.closedLidMuteSpeakers = $0 }
+                ))
+                Text("Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Text("Turn this on and then quit, and Keepresso asks whether to turn it off first.")
                 .font(.caption)

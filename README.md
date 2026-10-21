@@ -215,6 +215,13 @@ It lives quietly in the menu bar, no Dock icon, no clutter.
   thermal heat boost and pause settings: a heat boost can raise the floor, then
   return to it when the Mac cools. Fanless Macs keep the existing thermal pause
   behavior. Disarming or quitting restores automatic fan control.
+- 🔇 **Closed-lid speaker mute.** An optional switch in the same section mutes
+  the built-in speakers while the lid is shut and closed-display mode is
+  active, so nothing plays out of a closed MacBook. Headphones and other
+  outputs keep playing. Opening the lid or ending the mode unmutes them at
+  their previous volume, speakers you had muted yourself stay muted, and a
+  crash or force quit is undone on the next launch. No helper or permission
+  needed.
 - 🔑 **One password, ever.** An optional **administrator helper**, a small
   system service installed from Preferences > General (or the welcome screen),
   handles the privileged switches for Keepresso: closed-display mode, the

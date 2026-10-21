@@ -289,6 +289,32 @@ final class AppModel {
         get { settings.closedLidLowPowerOnAC }
         set { settings.closedLidLowPowerOnAC = newValue; persist(); connectivityTick() }
     }
+    /// Built-in speaker mute while the lid is closed in closed-display mode.
+    /// No helper and no permission: CoreAudio mute is the user's own setting.
+    @ObservationIgnored private(set) lazy var speakerMute = ClosedLidSpeakerMuteController()
+    var closedLidMuteSpeakers: Bool {
+        get { settings.closedLidMuteSpeakers }
+        set { settings.closedLidMuteSpeakers = newValue; persist(); speakerMuteTick() }
+    }
+    /// Runs every tick, even with the feature off, so the controller forgets a
+    /// handled lid-closed stretch and a re-enable (setter or import) mutes
+    /// again. With the feature off the lid is never read and the tick costs
+    /// nothing unless a mute is still held.
+    func speakerMuteTick() {
+        let enabled = settings.closedLidMuteSpeakers
+        speakerMute.tick(enabled: enabled,
+            lidClosed: enabled ? lidClosedThisTick() : nil, closedDisplayActive: closedDisplay.isEnabled)
+    }
+    /// One IORegistry lid read shared by the closed-lid features (Low Power,
+    /// fan floor, speaker mute) within a tick, instead of one each.
+    @ObservationIgnored private var lidReading: (at: Date, closed: Bool?)?
+    private func lidClosedThisTick() -> Bool? {
+        let now = Date()
+        if let lidReading, now.timeIntervalSince(lidReading.at) < 0.5 { return lidReading.closed }
+        let closed = connectivityLid.isClosed()
+        lidReading = (now, closed)
+        return closed
+    }
     func saveHotspotPassword(_ password: String, ssid: String) async throws {
         try await Task.detached { [hotspotCredentials] in
             try hotspotCredentials.save(password: password, for: ssid)
@@ -316,7 +342,7 @@ final class AppModel {
         let useLowPower = settings.closedLidLowPower
         guard useHotspot || useLowPower || closedLidLowPowerController.hasPendingRequests || closedLidLowPowerController.busy else { return }
         let power = connectivityPower.current
-        let lidClosed = connectivityLid.isClosed()
+        let lidClosed = lidClosedThisTick()
         let closed = closedDisplay.isEnabled
         if useHotspot {
             hotspot.tick(conditions: HotspotConditions(sessionActive: session.isActive, lidClosed: lidClosed == true,
@@ -1317,7 +1343,7 @@ final class AppModel {
         if floorFailed, !sawFanFloorHelperError, helperInstalled { verifyHelper() }
         sawFanFloorHelperError = floorFailed
         guard settings.closedLidMinimumFanPercent != nil || fanFloor.requestedPercent != nil || fanFloor.busy else { return }
-        let armed = fanFloorArming.update(lidClosed: connectivityLid.isClosed(), sleepOverrideActive: closedDisplay.isEnabled)
+        let armed = fanFloorArming.update(lidClosed: lidClosedThisTick(), sleepOverrideActive: closedDisplay.isEnabled)
         let supported = machineHasFans && helper.daemonReadyForCurrentFeatures
         if armed, supported, settings.closedLidMinimumFanPercent != nil, fanDryRun.isRunning {
             guard !fanFloorCancelInFlight else { return }

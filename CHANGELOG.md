@@ -13,6 +13,11 @@ Versions follow [Semantic Versioning](https://semver.org).
   your Mac from sleeping, so low-battery and heat pauses still stop it, and
   it waits for you after a session's end action sleeps the display or locks
   the screen.
+- **Closed-lid speaker mute.** An optional switch in the closed-display
+  section mutes the built-in speakers while the lid is shut and
+  closed-display mode is active. Headphones and other outputs keep playing.
+  Opening the lid or ending the mode restores the sound at its previous
+  volume, and speakers you muted yourself stay muted.
 
 ### Fixed
 

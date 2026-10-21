@@ -760,3 +760,9 @@ APP.update({
 APP.update({
     "Also runs between sessions, which can keep the Mac from sleeping.": "在工作階段之間也會執行，因此可能讓 Mac 無法進入睡眠。",
 })
+
+# Closed-lid speaker mute
+APP.update({
+    "Mute built-in speakers while the lid is closed": "闔蓋時將內建揚聲器靜音",
+    "Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.": "在闔蓋且闔蓋模式啟用時，將內建揚聲器靜音。耳機及其他輸出裝置仍會繼續播放。開蓋或模式結束時會取消靜音，除非您原本就已自行將其靜音。",
+})

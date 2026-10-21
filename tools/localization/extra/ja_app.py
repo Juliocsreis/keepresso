@@ -768,3 +768,9 @@ APP.update({
 APP.update({
     "Also runs between sessions, which can keep the Mac from sleeping.": "セッションの合間にも実行されるため、Mac のスリープを妨げることがあります。",
 })
+
+# Closed-lid speaker mute
+APP.update({
+    "Mute built-in speakers while the lid is closed": "蓋を閉じたら内蔵スピーカーをミュート",
+    "Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.": "蓋を閉じ、クラムシェルモードが有効な間、内蔵スピーカーをミュートします。ヘッドフォンなどの他の出力は再生され続けます。蓋を開くかモードが終了するとミュートを解除します。ただし、自分でミュートしていた場合は解除しません。",
+})
