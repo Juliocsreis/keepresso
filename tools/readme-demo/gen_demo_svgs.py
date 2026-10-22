@@ -358,7 +358,8 @@ def wrap(sc, body, label):
            "@keyframes steam{0%{opacity:0;transform:translateY(4px)}30%{opacity:.9;transform:translateY(0)}"
            "65%{opacity:.35;transform:translateY(-3px)}100%{opacity:0;transform:translateY(-6px)}}"
            + SPARK_CSS + "".join(sc.css)
-           + "@media (prefers-reduced-motion:reduce){*{animation-duration:0s!important;animation-iteration-count:1!important}}")
+           + "@media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:0s!important}"
+             ".sc>g:first-child,.su>g:first-child{animation:none!important;opacity:1}}")
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
             f'role="img" aria-label="{esc(label)}">\n<style>{css}</style>\n{defs()}\n'
             f'<g clip-path="url(#card)">{body}</g>\n'

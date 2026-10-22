@@ -26,6 +26,9 @@ Versions follow [Semantic Versioning](https://semver.org).
   backup. Only that option returns to its default.
 - Keep settings you change while a session is paused for low battery or
   heat. The resumed session used to bring back the earlier ones.
+- Retry temporary speaker-mute failures and correctly restore or reapply the
+  mute after missing lid readings or a delayed audio change.
+- Keep the README demos readable with Reduce Motion enabled.
 
 ## [1.27.0] - 2026-10-14
 

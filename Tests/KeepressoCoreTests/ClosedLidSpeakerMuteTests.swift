@@ -20,7 +20,12 @@ private final class FakeSpeakers: BuiltInSpeakerMuting {
 
 private final class FakeMarker: SpeakerMuteMarking {
     var isSet = false
-    func set() -> Bool { isSet = true; return true }
+    var refuseSets = false
+    func set() -> Bool {
+        guard !refuseSets else { return false }
+        isSet = true
+        return true
+    }
     func clear() { isSet = false }
 }
 
@@ -168,6 +173,64 @@ private func makeController(muted: Bool? = false) -> (ClosedLidSpeakerMuteContro
 }
 
 @MainActor
+@Test func speakerMuteRetriesAFailedMuteAfterBackingOff() {
+    let (controller, speakers, marker) = makeController()
+    let start = Date(timeIntervalSince1970: 1_000_000)
+    speakers.refuseSets = true
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start)
+    speakers.refuseSets = false
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start.addingTimeInterval(1))
+    #expect(speakers.sets == [true])
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true,
+                    now: start.addingTimeInterval(ClosedLidSpeakerMuteController.unreachableRetry))
+    #expect(speakers.sets == [true, true])
+    #expect(controller.holding)
+    #expect(marker.isSet)
+}
+
+@MainActor
+@Test func speakerMuteRetriesWhenItsRecoveryMarkerCouldNotBeWritten() {
+    let (controller, speakers, marker) = makeController()
+    let start = Date(timeIntervalSince1970: 1_000_000)
+    marker.refuseSets = true
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start)
+    #expect(speakers.sets.isEmpty)
+    marker.refuseSets = false
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true,
+                    now: start.addingTimeInterval(ClosedLidSpeakerMuteController.unreachableRetry))
+    #expect(speakers.muted == true)
+    #expect(controller.holding)
+    #expect(marker.isSet)
+}
+
+@MainActor
+@Test func speakerMuteFinishesAnUnconfirmedReleaseBeforeRearming() {
+    let (controller, speakers, marker) = makeController()
+    let start = Date(timeIntervalSince1970: 1_000_000)
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start)
+    speakers.refuseSets = true
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true, now: start.addingTimeInterval(1))
+    #expect(controller.holding)
+
+    // CoreAudio accepted an unmute but its immediate read-back was stale.
+    // It lands after the lid closes again, while release is still pending.
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true, now: start.addingTimeInterval(2))
+    speakers.refuseSets = false
+    speakers.muted = false
+    controller.tick(enabled: true, lidClosed: true, closedDisplayActive: true,
+                    now: start.addingTimeInterval(1 + ClosedLidSpeakerMuteController.unreachableRetry))
+    #expect(speakers.muted == true)
+    #expect(speakers.sets == [true, false, true])
+    #expect(controller.holding)
+    #expect(marker.isSet)
+
+    controller.tick(enabled: true, lidClosed: false, closedDisplayActive: true,
+                    now: start.addingTimeInterval(20))
+    #expect(speakers.muted == false)
+    #expect(!marker.isSet)
+}
+
+@MainActor
 @Test func speakerMuteRestoresAfterACrash() {
     let (controller, speakers, marker) = makeController(muted: true)
     marker.isSet = true // a previous run muted and never got to unmute
@@ -206,6 +269,17 @@ private func makeController(muted: Bool? = false) -> (ClosedLidSpeakerMuteContro
     // The lid reads open; closed-display mode hasn't been read yet. An open
     // lid can't be closed-display mode, so the sound comes back now.
     controller.tick(enabled: true, lidClosed: false, closedDisplayActive: nil)
+    #expect(speakers.muted == false)
+    #expect(!marker.isSet)
+    #expect(!controller.holding)
+}
+
+@MainActor
+@Test func speakerMuteCrashRestoreReleasesWhenTheModeIsOffBeforeTheLidIsKnown() {
+    let (controller, speakers, marker) = makeController(muted: true)
+    marker.isSet = true
+    controller.restoreIfNeeded()
+    controller.tick(enabled: true, lidClosed: nil, closedDisplayActive: false)
     #expect(speakers.muted == false)
     #expect(!marker.isSet)
     #expect(!controller.holding)

@@ -162,12 +162,13 @@ public final class ClosedLidSpeakerMuteController {
     /// already muted), so it never re-mutes after the user unmutes with the
     /// lid shut. Cleared when the stretch ends.
     @ObservationIgnored private var handledThisStretch = false
-    /// The last real lid reading, and whether an override reading has arrived.
-    /// Until they show the lid open or both are known, a mute carried over
-    /// from a crashed run is held, so a relaunch with the lid still shut
-    /// doesn't unmute for a moment.
+    /// The last real readings. Either an open lid or an inactive override
+    /// releases a recovered mute, even before the other reading arrives.
     @ObservationIgnored private var lastLidClosed: Bool?
-    @ObservationIgnored private var sawOverride = false
+    @ObservationIgnored private var lastClosedDisplayActive: Bool?
+    /// An unmute may land after its read-back failed. Finish that release
+    /// before acquiring another hold, even if the lid has closed again.
+    @ObservationIgnored private var releasePending = false
     /// No speaker probe before this instant (see ``unreachableRetry``).
     @ObservationIgnored private var nextProbeAt: Date?
 
@@ -183,15 +184,18 @@ public final class ClosedLidSpeakerMuteController {
     /// known value, like the other closed-lid features.
     public func tick(enabled: Bool, lidClosed: Bool?, closedDisplayActive: Bool?, now: Date = Date()) {
         if let lidClosed { lastLidClosed = lidClosed }
-        if closedDisplayActive != nil { sawOverride = true }
+        if let closedDisplayActive { lastClosedDisplayActive = closedDisplayActive }
         let armed = arming.update(lidClosed: lidClosed, sleepOverrideActive: closedDisplayActive)
+        if releasePending {
+            release(now: now)
+            guard !holding else { return }
+        }
         guard enabled, armed else {
             handledThisStretch = false
-            // Feature on, and the lid isn't known to be open: until the lid
-            // and the override have both been read, it may still be a shut
-            // lid in closed-display mode, so keep a held mute. An open lid,
-            // or the feature off, releases without waiting for the rest.
-            if enabled, lastLidClosed != false, lastLidClosed == nil || !sawOverride { return }
+            // Keep a recovered mute while the readings could still mean a
+            // shut lid in closed-display mode. Either known-off input, or
+            // the feature off, releases without waiting for the rest.
+            if enabled, lastLidClosed != false, lastClosedDisplayActive != false { return }
             release(now: now)
             return
         }
@@ -201,12 +205,20 @@ public final class ClosedLidSpeakerMuteController {
             return
         }
         nextProbeAt = nil
-        handledThisStretch = true
-        guard !muted, marker.set() else { return }
+        if muted {
+            handledThisStretch = true
+            return
+        }
+        guard marker.set() else {
+            nextProbeAt = now.addingTimeInterval(Self.unreachableRetry)
+            return
+        }
         if speakers.setMuted(true) {
             holding = true
+            handledThisStretch = true
         } else {
             marker.clear()
+            nextProbeAt = now.addingTimeInterval(Self.unreachableRetry)
         }
     }
 
@@ -221,6 +233,7 @@ public final class ClosedLidSpeakerMuteController {
 
     private func release(now: Date?) {
         guard holding else { return }
+        releasePending = true
         if let now, !probeAllowed(now) { return }
         switch speakers.isMuted() {
         case true?:
@@ -239,6 +252,7 @@ public final class ClosedLidSpeakerMuteController {
         }
         nextProbeAt = nil
         holding = false
+        releasePending = false
         marker.clear()
     }
 
