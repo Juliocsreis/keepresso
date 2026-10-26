@@ -55,8 +55,8 @@ if [ ! -x "$GENERATE_APPCAST" ]; then
 fi
 if [ ! -x "$GENERATE_APPCAST" ]; then
   # Same pinned tarball and hash as .github/workflows/release.yml.
-  SPARKLE_VERSION=2.10.0
-  SPARKLE_SHA256=c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
+  SPARKLE_VERSION=2.10.1
+  SPARKLE_SHA256=1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
   SPARKLE_DIR="$(mktemp -d)"
   trap 'rm -rf "$SPARKLE_DIR"' EXIT
   info "Downloading Sparkle ${SPARKLE_VERSION} tools"
