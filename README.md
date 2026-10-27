@@ -531,6 +531,8 @@ verified without touching real hardware.
 ### Scripts
 
 - `scripts/run.sh`: generate the project and open it in Xcode.
+- `scripts/install-local.sh`: build a Release copy signed with your Apple
+  Development team and install it into `/Applications` (this fork's local use).
 - `scripts/make-icon.swift`: regenerate the app icon asset catalog.
 
 See [docs/BUILDING.md](docs/BUILDING.md) for a full build walkthrough and
