@@ -310,7 +310,8 @@ public final class SMCFanController: FanControlling, @unchecked Sendable {
             let requested = minRPM + Double(percent) / 100 * (maxRPM - minRPM)
             let target = min(max(requested, engageFloor[fan] ?? 0, minRPM), maxRPM)
 
-            switch smc.write(modeKey(fan: fan, smc: smc), value: 1) {
+            let mode = modeKey(fan: fan, smc: smc)
+            switch smc.write(mode, value: 1) {
             case SMCConnection.ResultCode.success:
                 break
             case SMCConnection.ResultCode.notWritable:
@@ -321,14 +322,16 @@ public final class SMCFanController: FanControlling, @unchecked Sendable {
                 allOK = false
                 continue
             }
-            switch smc.write("F\(fan)Tg", value: target) {
-            case SMCConnection.ResultCode.success:
-                break
-            case SMCConnection.ResultCode.notWritable:
-                needsUnlock = true
+            let targetResult = smc.write("F\(fan)Tg", value: target)
+            if targetResult != SMCConnection.ResultCode.success {
+                // Never leave a fan in manual mode without our target: it would
+                // sit at a stale speed and couldn't ramp up with load. Hand it
+                // straight back to the system.
+                _ = smc.write(mode, value: 0)
                 allOK = false
-            default:
-                allOK = false
+                if targetResult == SMCConnection.ResultCode.notWritable {
+                    needsUnlock = true
+                }
             }
         }
         if needsUnlock { return .needsUnlock }
