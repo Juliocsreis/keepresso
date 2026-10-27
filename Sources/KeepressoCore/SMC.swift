@@ -310,7 +310,7 @@ public final class SMCFanController: FanControlling, @unchecked Sendable {
             let requested = minRPM + Double(percent) / 100 * (maxRPM - minRPM)
             let target = min(max(requested, engageFloor[fan] ?? 0, minRPM), maxRPM)
 
-            switch smc.write("F\(fan)Md", value: 1) {
+            switch smc.write(modeKey(fan: fan, smc: smc), value: 1) {
             case SMCConnection.ResultCode.success:
                 break
             case SMCConnection.ResultCode.notWritable:
@@ -344,13 +344,30 @@ public final class SMCFanController: FanControlling, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         var ok = true
-        for fan in 0..<count where smc.write("F\(fan)Md", value: 0) != SMCConnection.ResultCode.success {
+        for fan in 0..<count
+        where smc.write(modeKey(fan: fan, smc: smc), value: 0) != SMCConnection.ResultCode.success {
             ok = false
         }
         // Clear the test-mode unlock if it was ever set; harmless when not.
         _ = smc.write("Ftst", value: 0)
         engageFloor.removeAll()
         return ok
+    }
+
+    private func modeKey(fan: Int, smc: SMCConnection) -> String {
+        Self.modeKey(fan: fan) { smc.keyInfo($0) != nil }
+    }
+
+    /// The per-fan manual-mode key. Most Macs name it `F<n>Md`; M5 firmware
+    /// (seen on Mac17,2) names it `F<n>md` and has no `F<n>Md` at all, so a
+    /// write to the usual name fails with "key not found". Prefers the usual
+    /// name whenever it exists, so older Macs behave exactly as before.
+    static func modeKey(fan: Int, keyExists: (String) -> Bool) -> String {
+        let usual = "F\(fan)Md"
+        let lowercase = "F\(fan)md"
+        if keyExists(usual) { return usual }
+        if keyExists(lowercase) { return lowercase }
+        return usual
     }
 }
 

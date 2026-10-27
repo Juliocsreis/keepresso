@@ -70,3 +70,17 @@ import Testing
     #expect(!SMCThermalSensors.isPlausibleCelsius(-127)) // disconnected probe
     #expect(!SMCThermalSensors.isPlausibleCelsius(400))  // a counter, not a temp
 }
+
+// MARK: - Fan mode key
+
+@Test func fanModeKeyPrefersUsualName() {
+    let keys: Set = ["F0Md", "F0md"]
+    #expect(SMCFanController.modeKey(fan: 0) { keys.contains($0) } == "F0Md")
+}
+
+@Test func fanModeKeyFallsBackToLowercaseOnM5() {
+    // Mac17,2 (M5 MacBook Pro) has only the lowercase key.
+    let keys: Set = ["F0md", "F0Tg", "F0Mn", "F0Mx"]
+    #expect(SMCFanController.modeKey(fan: 0) { keys.contains($0) } == "F0md")
+    #expect(SMCFanController.modeKey(fan: 1) { _ in false } == "F1Md")
+}
