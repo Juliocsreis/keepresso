@@ -64,7 +64,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Keepresso reads Wi-Fi network names for your triggers and to find the hotspot you choose for automatic fallback.</string>
 	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<false/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/gyorgysh/keepresso/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>

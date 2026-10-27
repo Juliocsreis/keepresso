@@ -42,3 +42,13 @@ final class SparkleUpdater: Updating {
 
     func checkForUpdates() { controller.checkForUpdates(nil) }
 }
+
+/// Fork-local updater that never checks for or installs anything. This fork is
+/// built and run locally only: updates come from pulling upstream, reviewing the
+/// changes, and rebuilding, so Sparkle is never started. The "Check for
+/// Updates…" menu item stays visible but disabled.
+@MainActor
+final class DisabledUpdater: Updating {
+    var canCheckForUpdates: Bool { false }
+    func checkForUpdates() {}
+}

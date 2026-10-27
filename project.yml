@@ -106,7 +106,7 @@ targets:
         # the printed public key below (the private key stays in the Keychain).
         SUFeedURL: "https://github.com/gyorgysh/keepresso/releases/latest/download/appcast.xml"
         SUPublicEDKey: "n3mCQxtsVXbnaHZEzhv5Yfzr94+Y6CzwBk4jHtrCmm4="
-        SUEnableAutomaticChecks: true
+        SUEnableAutomaticChecks: false
     entitlements:
       path: Sources/Keepresso/Keepresso.entitlements
       properties:

@@ -142,9 +142,9 @@ private struct MenuBarLabelView: View {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: AppModel
-    /// Sparkle-backed auto-updater, behind the ``Updating`` seam. Started here so
-    /// it schedules background checks for the app's whole lifetime.
-    let updater: any Updating = SparkleUpdater()
+    /// Auto-update is off in this fork (see ``DisabledUpdater``): Sparkle is never
+    /// started, so nothing is fetched or installed from the upstream feed.
+    let updater: any Updating = DisabledUpdater()
     /// Right-click context menu on the menu-bar icon (see ``StatusItemBridge``).
     private(set) lazy var statusItemBridge = StatusItemBridge(updater: updater)
 
