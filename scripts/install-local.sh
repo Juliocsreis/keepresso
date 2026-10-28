@@ -8,9 +8,13 @@
 # the hardened runtime refuses to load a bundled library from a different
 # team, and an ad-hoc build has no team at all, so it crashes at launch.
 #
-#   ./scripts/install-local.sh                 # build, install, launch
-#   ./scripts/install-local.sh --no-launch     # build and install only
-#   KEEPRESSO_TEAM=XXXXXXXXXX ./scripts/install-local.sh   # another team
+#   KEEPRESSO_TEAM=XXXXXXXXXX ./scripts/install-local.sh              # build, install, launch
+#   KEEPRESSO_TEAM=XXXXXXXXXX ./scripts/install-local.sh --no-launch  # build and install only
+#
+# KEEPRESSO_TEAM is your 10-character Apple Developer Team ID. Find it in the
+# OU field of your certificate, or in the parentheses of the output of
+#   security find-identity -v -p codesigning
+# Export it from your shell profile so you don't have to type it each time.
 #
 set -euo pipefail
 
@@ -18,8 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Personal team (juliocsreis@icloud.com). Override with KEEPRESSO_TEAM.
-TEAM="${KEEPRESSO_TEAM:-4H92T3FW87}"
+TEAM="${KEEPRESSO_TEAM:-}"
 BUNDLE_ID="sh.gyorgy.keepresso"
 DEST="/Applications/Keepresso.app"
 DERIVED="$ROOT_DIR/build/local"
@@ -49,6 +52,8 @@ command -v xcodegen >/dev/null 2>&1 \
   || die "XcodeGen not found. Install it with: brew install xcodegen"
 security find-identity -v -p codesigning | grep -q "Apple Development" \
   || die "No Apple Development certificate found in your keychain."
+[[ "$TEAM" =~ ^[A-Z0-9]{10}$ ]] \
+  || die "Set KEEPRESSO_TEAM to your 10-character Team ID (see --help)."
 
 # --- Build -------------------------------------------------------------------
 

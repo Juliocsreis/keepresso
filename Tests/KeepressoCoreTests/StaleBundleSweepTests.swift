@@ -69,7 +69,7 @@ private func sweep(
 
 @Test func sweepNeverDeletesOutsideATrashFolder() {
     // A copy the user parked somewhere is theirs to keep.
-    let parked = URL(fileURLWithPath: "/Users/g/Desktop/Keepresso old.app")
+    let parked = URL(fileURLWithPath: "/Users/g/Desktop/Keepresso old.app") // hygiene: allow
     let remover = FakeRemover()
     let result = sweep(bookmark: Data([1]), resolvesTo: parked, remover: remover)
     #expect(result == .leftAlone(path: parked.path, reason: "not in a Trash folder"))
