@@ -39,6 +39,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PINNED: ${{ steps.sparkle.outputs.pinned }}
           LATEST: ${{ steps.sparkle.outputs.latest }}
+          TAG: ${{ steps.sparkle.outputs.tag }}
         run: |
           title="Update Sparkle to ${LATEST}"
           # Its own step, not a pipe: a failed search must fail the job, not
@@ -49,7 +50,7 @@ jobs:
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(cat <<BODY
           Sparkle ${LATEST} is out; project.yml pins ${PINNED}.
 
-          Release notes: https://github.com/sparkle-project/Sparkle/releases/tag/${LATEST}
+          Release notes: https://github.com/sparkle-project/Sparkle/releases/tag/${TAG}
 
           To update: bump \`exactVersion\` under \`packages: Sparkle\` in project.yml, run
           \`xcodegen generate\`, build and test, and check the release notes for

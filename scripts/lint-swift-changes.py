@@ -25,7 +25,8 @@ import sys
 
 LAYOUT_RULES = {"Indentation", "AddLines", "RemoveLine", "Spacing", "TrailingComma"}
 FINDING = re.compile(r"^(?P<path>.+?):(?P<line>\d+):(?P<col>\d+): (?:warning|error): \[(?P<rule>\w+)\] (?P<msg>.*)$")
-STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+# A string literal, or the start of a // comment (matched outside strings).
+STRING_OR_COMMENT = re.compile(r'"(?:[^"\\\n]|\\.)*"|//')
 LONG_STRING = 40
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,(?P<count>\d+))? @@")
 
@@ -74,7 +75,12 @@ def holds_long_string(path: str, line: int) -> bool:
             text = f.read().splitlines()[line - 1]
     except (OSError, IndexError):
         return False
-    return any(len(m.group(0)) >= LONG_STRING for m in STRING.finditer(text))
+    for m in STRING_OR_COMMENT.finditer(text):
+        if m.group(0) == "//":
+            return False  # the rest of the line is a comment, not code
+        if len(m.group(0)) >= LONG_STRING:
+            return True
+    return False
 
 
 def main() -> int:

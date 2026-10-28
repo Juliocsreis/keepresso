@@ -9,8 +9,8 @@ Usage:
   python3 scripts/check-sparkle-version.py
 
 Reads GH_TOKEN (optional) to avoid the anonymous API rate limit. Prints a
-summary and, on GitHub Actions, writes pinned=, latest= and newer= to
-$GITHUB_OUTPUT. Exits nonzero only when it can't determine the versions.
+summary and, on GitHub Actions, writes pinned=, latest=, tag= (the release's
+tag exactly as published, for links) and newer= to $GITHUB_OUTPUT. Exits nonzero only when it can't determine the versions.
 """
 import json
 import os
@@ -35,13 +35,14 @@ def pinned_version() -> str:
     raise SystemExit("Sparkle exactVersion not found in project.yml")
 
 
-def latest_version() -> str:
+def latest_release() -> tuple:
+    """(version without any "v" prefix, the raw release tag)."""
     request = urllib.request.Request(LATEST_URL, headers={"Accept": "application/vnd.github+json"})
     if token := os.environ.get("GH_TOKEN"):
         request.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(request, timeout=20) as response:
         tag = json.load(response)["tag_name"]
-    return tag.removeprefix("v")
+    return tag.removeprefix("v"), tag
 
 
 def as_tuple(version: str) -> tuple:
@@ -51,13 +52,14 @@ def as_tuple(version: str) -> tuple:
 
 
 def main() -> int:
-    pinned, latest = pinned_version(), latest_version()
+    pinned = pinned_version()
+    latest, tag = latest_release()
     newer = as_tuple(latest) > as_tuple(pinned)
     print(f"Sparkle pinned {pinned}, latest release {latest}: "
           + ("update available." if newer else "up to date."))
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a", encoding="utf-8") as f:
-            f.write(f"pinned={pinned}\nlatest={latest}\nnewer={'true' if newer else 'false'}\n")
+            f.write(f"pinned={pinned}\nlatest={latest}\ntag={tag}\nnewer={'true' if newer else 'false'}\n")
     return 0
 
 
