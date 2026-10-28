@@ -58,19 +58,36 @@ def counterpart(fn, head_by_name: dict, before: tuple):
     return by_name[fn.name][index] if index < len(by_name[fn.name]) else None
 
 
+def changed_files(base: str) -> list:
+    """(head path, base path) for each added, modified or renamed Swift file.
+
+    NUL-separated so unusual paths come through verbatim instead of
+    git-quoted; a renamed file is compared with its old path's contents.
+    """
+    fields = git("diff", "--name-status", "-z", "--find-renames", "--diff-filter=AMR",
+                 f"{base}...HEAD", "--", "*.swift").split("\0")
+    files, i = [], 0
+    while i < len(fields) and fields[i]:
+        status = fields[i]
+        if status.startswith("R"):
+            files.append((fields[i + 2], fields[i + 1]))
+            i += 3
+        else:
+            files.append((fields[i + 1], fields[i + 1]))
+            i += 2
+    return [(path, old) for path, old in files if path.startswith(SCOPE)]
+
+
 def main() -> int:
     base = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("BASE_REF", "origin/main")
-    changed = [
-        p for p in git("diff", "--name-only", "--diff-filter=AM", f"{base}...HEAD", "--", "*.swift").split()
-        if p.startswith(SCOPE)
-    ]
+    changed = changed_files(base)
     merge_base = git("merge-base", base, "HEAD").strip()
     findings = []
-    for path in changed:
+    for path, old in changed:
         with open(path, encoding="utf-8") as f:
             head, head_by_name = functions(path, f.read())
         try:
-            base_code = git("show", f"{merge_base}:{path}")
+            base_code = git("show", f"{merge_base}:{old}")
         except subprocess.CalledProcessError:
             base_code = ""  # new file
         before = functions(path, base_code)
