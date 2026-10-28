@@ -1,0 +1,52 @@
+name: Sparkle watch
+
+# Dependabot can't see Sparkle (it's pinned in project.yml, not Package.swift),
+# so this checks weekly and opens one issue when a newer release ships.
+on:
+  schedule:
+    - cron: '41 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check for a newer Sparkle
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write  # open the "update Sparkle" issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compare pinned and latest Sparkle
+        id: sparkle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-sparkle-version.py
+      - name: Open an issue if Sparkle is behind
+        if: steps.sparkle.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED: ${{ steps.sparkle.outputs.pinned }}
+          LATEST: ${{ steps.sparkle.outputs.latest }}
+        run: |
+          title="Update Sparkle to ${LATEST}"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${title}\" in:title" \
+               --json number --jq 'length' | grep -qx 0; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(cat <<BODY
+          Sparkle ${LATEST} is out; project.yml pins ${PINNED}.
+
+          Release notes: https://github.com/sparkle-project/Sparkle/releases/tag/${LATEST}
+
+          To update: bump \`exactVersion\` under \`packages: Sparkle\` in project.yml, run
+          \`xcodegen generate\`, build and test, and check the release notes for
+          anything that affects signing, the appcast, or the updater UI.
+          BODY
+          )"
+          else
+            echo "An open issue for ${title} already exists."
+          fi

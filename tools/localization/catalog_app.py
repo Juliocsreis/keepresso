@@ -55,7 +55,6 @@ _SHORT = {
     "To": {"hu": "Eddig", "es": "Hasta", "fr": "À", "de": "Bis", "zh-Hans": "到"},
     "Until": {"hu": "Eddig", "es": "Hasta", "fr": "Jusqu’à", "de": "Bis", "zh-Hans": "直到"},
     "When": {"hu": "Mikor", "es": "Cuándo", "fr": "Quand", "de": "Wann", "zh-Hans": "何时"},
-    "Match": {"hu": "Egyezés", "es": "Coincidencia", "fr": "Correspondance", "de": "Übereinstimmung", "zh-Hans": "匹配"},
     "Below": {"hu": "Alatt", "es": "Por debajo", "fr": "En dessous", "de": "Unter", "zh-Hans": "低于"},
     "Power": {"hu": "Tápellátás", "es": "Energía", "fr": "Alimentation", "de": "Energie", "zh-Hans": "电源"},
     "Display": {"hu": "Kijelző", "es": "Pantalla", "fr": "Écran", "de": "Display", "zh-Hans": "显示器"},
@@ -233,7 +232,6 @@ _MED = {
     "While running": {"hu": "Amíg fut", "es": "Mientras se ejecuta", "fr": "Pendant l’exécution", "de": "Während der Ausführung", "zh-Hans": "运行时"},
     "Work hours (weekdays 9:00-18:00)": {"hu": "Munkaidő (hétköznap 9:00–18:00)", "es": "Horario laboral (días laborables 9:00-18:00)", "fr": "Heures de travail (semaine 9:00-18:00)", "de": "Arbeitszeit (wochentags 9:00–18:00)", "zh-Hans": "工作时间（工作日 9:00–18:00）"},
     "Audio playing": {"hu": "Hang lejátszása", "es": "Reproduciendo audio", "fr": "Lecture audio en cours", "de": "Audiowiedergabe", "zh-Hans": "正在播放音频"},
-    "Notify when auto-pausing and resuming": {"hu": "Értesítés automatikus szüneteltetéskor és folytatáskor", "es": "Avisar al pausar y reanudar automáticamente", "fr": "Prévenir lors des pauses et reprises automatiques", "de": "Bei automatischem Pausieren und Fortsetzen benachrichtigen", "zh-Hans": "自动暂停和恢复时通知"},
 }
 APP.update(_MED)
 
