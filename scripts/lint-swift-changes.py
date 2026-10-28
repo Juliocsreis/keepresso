@@ -34,18 +34,36 @@ def git(*args: str) -> str:
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
 
+def changed_files(base: str) -> list:
+    """(head path, base path) for each added, modified or renamed Swift file.
+
+    NUL-separated so unusual paths (spaces, non-ASCII) come through verbatim
+    instead of git-quoted; renames keep their edits instead of being dropped.
+    """
+    fields = git("diff", "--name-status", "-z", "--find-renames", "--diff-filter=AMR",
+                 f"{base}...HEAD", "--", "*.swift").split("\0")
+    files, i = [], 0
+    while i < len(fields) and fields[i]:
+        status = fields[i]
+        if status.startswith("R"):
+            files.append((fields[i + 2], fields[i + 1]))
+            i += 3
+        else:
+            files.append((fields[i + 1], fields[i + 1]))
+            i += 2
+    return files
+
+
 def changed_lines(base: str) -> dict:
-    """Map each added or modified Swift file to the line numbers it adds."""
-    diff = git("diff", "--unified=0", "--diff-filter=AM", "--no-color", f"{base}...HEAD", "--", "*.swift")
+    """Map each changed Swift file to the line numbers it adds."""
     lines: dict = {}
-    path = None
-    for row in diff.splitlines():
-        if row.startswith("+++ "):
-            path = row[6:] if row.startswith("+++ b/") else None
-        elif path and (m := HUNK.match(row)):
-            start = int(m["start"])
-            count = int(m["count"]) if m["count"] is not None else 1
-            lines.setdefault(path, set()).update(range(start, start + count))
+    for path, old in changed_files(base):
+        diff = git("diff", "--unified=0", "--no-color", "--find-renames", f"{base}...HEAD", "--", old, path)
+        for row in diff.splitlines():
+            if m := HUNK.match(row):
+                start = int(m["start"])
+                count = int(m["count"]) if m["count"] is not None else 1
+                lines.setdefault(path, set()).update(range(start, start + count))
     return {p: ls for p, ls in lines.items() if ls}
 
 
@@ -70,8 +88,10 @@ def main() -> int:
         capture_output=True, text=True,
     )
     findings = []
+    parsed = False
     for row in (run.stderr + run.stdout).splitlines():
         m = FINDING.match(row)
+        parsed = parsed or m is not None
         if not m or m["rule"] in LAYOUT_RULES:
             continue
         path, line = os.path.relpath(m["path"]), int(m["line"])
@@ -82,6 +102,11 @@ def main() -> int:
         finding = (path, line, int(m["col"]), m["rule"], m["msg"])
         if finding not in findings:
             findings.append(finding)
+    if run.returncode != 0 and not parsed:
+        # A crash or bad invocation, not lint results: never pass silently.
+        print(run.stderr or run.stdout, file=sys.stderr)
+        print(f"swift format lint failed (exit {run.returncode}) without reporting findings.", file=sys.stderr)
+        return 2
     annotate = os.environ.get("GITHUB_ACTIONS") == "true"
     for path, line, col, rule, msg in findings:
         print(f"{path}:{line}:{col}: [{rule}] {msg}")

@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# A scheduled and a manual run at once could both miss each other's issue
+# and open duplicates; queue them instead.
+concurrency:
+  group: sparkle-watch
+  cancel-in-progress: false
+
 jobs:
   check:
     name: Check for a newer Sparkle
@@ -35,8 +41,11 @@ jobs:
           LATEST: ${{ steps.sparkle.outputs.latest }}
         run: |
           title="Update Sparkle to ${LATEST}"
-          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${title}\" in:title" \
-               --json number --jq 'length' | grep -qx 0; then
+          # Its own step, not a pipe: a failed search must fail the job, not
+          # read as "an issue already exists".
+          open_count=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"${title}\" in:title" --json number --jq 'length')
+          if [ "$open_count" = 0 ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(cat <<BODY
           Sparkle ${LATEST} is out; project.yml pins ${PINNED}.
 
