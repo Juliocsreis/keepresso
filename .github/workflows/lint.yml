@@ -54,6 +54,27 @@ jobs:
       - name: ruff check (rules in ruff.toml)
         run: '"$RUNNER_TEMP/lint/bin/ruff" check --output-format github .'
 
+  swift-complexity:
+    name: Swift complexity (changed functions)
+    # A ratchet against the pull request's base: new or worsened functions
+    # over complexity 12 or 50 lines fail. Pure Python (lizard), no Xcode.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install lizard (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet --require-hashes -r tools/ci/requirements.txt
+      - name: Complexity and length of the functions this pull request changes
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: '"$RUNNER_TEMP/lint/bin/python" scripts/check-swift-complexity.py'
+
   swift-format:
     name: Swift lint (changed lines)
     # Compares against the pull request's base; on main there's nothing to

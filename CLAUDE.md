@@ -74,7 +74,8 @@ open Keepresso.xcodeproj    # build/run the Keepresso scheme with ⌘R
 
 # Lint (the same checks the Lint workflow runs on every pull request)
 python3 scripts/lint-swift-changes.py   # swift-format, only lines changed vs origin/main
-ruff check .                            # Python tooling; rules in ruff.toml
+python3 scripts/check-swift-complexity.py  # no new or worsened function over complexity 12 / 50 lines (needs lizard)
+ruff check .                            # Python tooling; rules in ruff.toml (same complexity limits)
 ```
 
 CI also runs actionlint and zizmor on the workflows, CodeQL (Swift, Python,
