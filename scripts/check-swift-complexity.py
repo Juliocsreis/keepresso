@@ -24,7 +24,7 @@ from collections import defaultdict
 
 import lizard
 
-MAX_CCN = 12
+MAX_COMPLEXITY = 12
 MAX_NLOC = 50
 SCOPE = ("Sources/",)
 
@@ -78,9 +78,9 @@ def main() -> int:
             for fn in fns:
                 old = counterpart(fn, head_by_name, before)
                 problems = []
-                if fn.cyclomatic_complexity > MAX_CCN and (old is None or fn.cyclomatic_complexity > old.cyclomatic_complexity):
+                if fn.cyclomatic_complexity > MAX_COMPLEXITY and (old is None or fn.cyclomatic_complexity > old.cyclomatic_complexity):
                     was = f", was {old.cyclomatic_complexity}" if old else ""
-                    problems.append(f"complexity {fn.cyclomatic_complexity} > {MAX_CCN}{was}")
+                    problems.append(f"complexity {fn.cyclomatic_complexity} > {MAX_COMPLEXITY}{was}")
                 if fn.nloc > MAX_NLOC and (old is None or fn.nloc > old.nloc):
                     was = f", was {old.nloc}" if old else ""
                     problems.append(f"{fn.nloc} lines > {MAX_NLOC}{was}")
@@ -93,7 +93,7 @@ def main() -> int:
         if annotate:
             print(f"::error file={path},line={line},title=Function too complex or long::{name}: {problem}")
     print(f"Swift complexity: {len(findings)} finding(s) in {len(changed)} changed file(s) "
-          f"(limits: complexity {MAX_CCN}, {MAX_NLOC} lines).")
+          f"(limits: complexity {MAX_COMPLEXITY}, {MAX_NLOC} lines).")
     return 1 if findings else 0
 
 
