@@ -145,9 +145,7 @@ final class SessionTicker {
                     if session.consumesDisplayReading, let lidClosed, let self {
                         if lidClosed {
                             let external = hasExternal ?? self.externalDisplay.current.hasExternalDisplay
-                            display = external
-                                ? .lidShutWithExternal
-                                : .lidShutNoExternal
+                            display = external ? .lidShutWithExternal : .lidShutNoExternal
                         } else {
                             display = .usable
                         }
