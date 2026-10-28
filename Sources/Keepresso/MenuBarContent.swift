@@ -288,7 +288,7 @@ struct MenuBarContent: View {
         VStack(alignment: .leading, spacing: layout.density.spacing) {
             if model.helperAttention != nil { helperAttentionBanner.disabled(preview != nil) }
             // A hidden caption must not conceal why an attempted start failed.
-            if (session.pausedByBattery || session.pausedByThermal) && !visible.contains(.statusCaption) {
+            if session.isSafetyPaused && !visible.contains(.statusCaption) {
                 Text(statusDetail).font(type.caption).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -563,7 +563,7 @@ struct MenuBarContent: View {
                     .frame(width: style == .card ? 36 : 24, height: style == .card ? 36 : 24)
                     .accessibilityHidden(true)
             }
-            Text(session.pausedByBattery || session.pausedByThermal ? L("Paused") : (session.isActive ? L("Brewing") : L("Idle")))
+            Text(session.isSafetyPaused ? L("Paused") : (session.isActive ? L("Brewing") : L("Idle")))
                 .font(style == .card ? type.headline : type.body.weight(.medium))
             Spacer(minLength: 0)
         }
@@ -1033,7 +1033,7 @@ struct MenuBarContent: View {
                 scale: type.scale
             )
             VStack(alignment: .leading, spacing: 2) {
-                Text((session.pausedByBattery || session.pausedByThermal)
+                Text(session.isSafetyPaused
                     ? L("Paused")
                     : (session.isActive ? L("Brewing") : L("Idle")))
                     .font(type.headline)
@@ -1188,6 +1188,9 @@ struct MenuBarContent: View {
             }
             return L("Running hot, letting the Mac cool down")
         }
+        if session.pausedByOffline {
+            return L("No internet with the lid closed, letting the Mac sleep")
+        }
         if model.triggersEnabled && !model.triggersPaused {
             return model.triggerSummary() ?? L("No conditions yet")
         }
@@ -1261,7 +1264,7 @@ struct MenuBarContent: View {
             // During a safety pause nothing is actually held awake: the
             // leases are waiting for the pause to lift, and claiming
             // otherwise would contradict the pause explanation above.
-            let paused = session.pausedByBattery || session.pausedByThermal
+            let paused = session.isSafetyPaused
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Image(systemName: "bolt.badge.clock")

@@ -174,6 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         thermalGuard: model.thermalGuard,
         lid: model.lidState,
         gameFrontmost: { [weak self] in self?.model.gameFrontmostForActivityPoke() ?? false },
+        offlinePause: model.offlinePause,
+        hotspotConnecting: { [weak self] in self?.model.hotspotConnecting ?? false },
         onThermalEffects: { [weak self] in self?.model.handleThermalEffects($0) },
         onTick: { [weak self] in
             self?.model.syncWidgetState()

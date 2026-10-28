@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "Low Power Mode is active.";
 "Initializing the helper…" = "Initializing the helper…";
 "Updating the helper…" = "Updating the helper…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General).";
+"No internet with the lid closed, letting the Mac sleep" = "No internet with the lid closed, letting the Mac sleep";
+"Let the Mac sleep when offline with the lid closed" = "Let the Mac sleep when offline with the lid closed";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session.";

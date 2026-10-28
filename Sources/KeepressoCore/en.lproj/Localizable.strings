@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Allow Location access to find Wi-Fi networks.";
 "A network connection is already available." = "A network connection is already available.";
 "Turn on Wi-Fi to connect to the hotspot." = "Turn on Wi-Fi to connect to the hotspot.";
+"Not started, no internet with the lid closed" = "Not started, no internet with the lid closed";
+"Paused, no internet with the lid closed" = "Paused, no internet with the lid closed";
+"Paused, no internet" = "Paused, no internet";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session.";
+"Resumed, internet or lid back" = "Resumed, internet or lid back";
+"Offline pause" = "Offline pause";

@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "Tryb niskiego zużycia energii jest aktywny.";
 "Initializing the helper…" = "Uruchamianie pomocnika…";
 "Updating the helper…" = "Aktualizowanie pomocnika…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso wstrzymało sesję z powodu braku internetu, ale nie może wyłączyć trybu zamkniętej pokrywy bez pomocnika administratora (Ustawienia ▸ Ogólne).";
+"No internet with the lid closed, letting the Mac sleep" = "Brak internetu przy zamkniętej pokrywie, Mac może przejść w stan uśpienia";
+"Let the Mac sleep when offline with the lid closed" = "Pozwól Macowi przejść w stan uśpienia, gdy jest offline przy zamkniętej pokrywie";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Przy zamkniętej pokrywie i włączonym trybie zamkniętej pokrywy Keepresso sprawdza internet co 20 sekund. Jeśli przez ten czas pozostaje niedostępny, sesja zostaje wstrzymana, a Mac może przejść w stan uśpienia. Gdy Mac nie ma żadnej sieci, najpierw próbowany jest hotspot zapasowy (jeśli jest skonfigurowany). Otwarcie pokrywy wznowi sesję.";

@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "저전력 모드가 켜져 있습니다.";
 "Initializing the helper…" = "도우미 초기화 중…";
 "Updating the helper…" = "도우미 업데이트 중…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso가 인터넷 연결이 없어 일시 정지되었지만, 관리자 도우미 없이는 디스플레이 닫힘 모드를 끌 수 없습니다 (환경설정 ▸ 일반).";
+"No internet with the lid closed, letting the Mac sleep" = "덮개가 닫힌 상태에서 인터넷 연결이 없어 Mac이 잠자도록 함";
+"Let the Mac sleep when offline with the lid closed" = "덮개를 닫은 상태에서 오프라인이면 Mac 잠자기 허용";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "덮개가 닫혀 있고 디스플레이 닫힘 모드가 켜져 있으면 Keepresso가 20초마다 인터넷을 확인합니다. 이 시간 동안 계속 연결되지 않으면 세션이 일시 정지되고 Mac이 잠자기에 들어갈 수 있습니다. Mac에 네트워크가 전혀 없으면 예비 핫스팟(설정한 경우)을 먼저 시도합니다. 덮개를 열면 세션이 재개됩니다.";

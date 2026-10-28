@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Consenti l’accesso alla posizione per trovare reti Wi-Fi.";
 "A network connection is already available." = "È già disponibile una connessione di rete.";
 "Turn on Wi-Fi to connect to the hotspot." = "Attiva il Wi-Fi per connetterti all’hotspot.";
+"Not started, no internet with the lid closed" = "Non avviato, nessuna connessione internet con il coperchio chiuso";
+"Paused, no internet with the lid closed" = "In pausa, nessuna connessione internet con il coperchio chiuso";
+"Paused, no internet" = "In pausa, nessuna connessione internet";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "Il coperchio è chiuso e il Mac è offline da troppo tempo, quindi Keepresso lo lascia andare in stop. Aprendo il coperchio la sessione riprende.";
+"Resumed, internet or lid back" = "Ripreso, internet tornato o coperchio aperto";
+"Offline pause" = "Pausa offline";

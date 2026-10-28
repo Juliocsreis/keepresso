@@ -77,7 +77,7 @@ struct MenuBarLabel: View {
     }
 
     private func refreshCustomText(_ layout: MenuLayout) {
-        let status = session.pausedByBattery || session.pausedByThermal
+        let status = session.isSafetyPaused
             ? L("Paused") : (session.isActive ? L("Brewing") : L("Idle"))
         switch layout.menuBarTextStyle {
         case .existing: customText = Self.format(session.remaining)

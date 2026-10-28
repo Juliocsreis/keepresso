@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "Le mode économie d’énergie est actif.";
 "Initializing the helper…" = "Initialisation de l’assistant…";
 "Updating the helper…" = "Mise à jour de l’assistant…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso s’est mis en pause faute d’internet, mais ne peut pas désactiver le mode écran fermé sans l’assistant administrateur (Réglages ▸ Général).";
+"No internet with the lid closed, letting the Mac sleep" = "Pas d’internet capot fermé, le Mac peut se mettre en veille";
+"Let the Mac sleep when offline with the lid closed" = "Laisser le Mac se mettre en veille hors ligne, capot fermé";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Capot fermé et mode écran fermé actif, Keepresso vérifie internet toutes les 20 secondes. S’il reste inaccessible pendant cette durée, la session se met en pause et le Mac peut se mettre en veille. Si le Mac n’a aucun réseau, le partage de connexion de secours (s’il est configuré) est essayé d’abord. Ouvrir le capot reprend la session.";

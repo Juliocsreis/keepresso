@@ -55,6 +55,9 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
     /// Force-stop an active session (and hold off reactivating) once battery
     /// charge drops below this percentage, or `nil` (the default) for off.
     public var pauseBelowBatteryPercent: Int?
+    /// With the lid closed, let the Mac sleep once it has had no internet for
+    /// this many minutes, or `nil` (the default) for off.
+    public var pauseWhenOfflineMinutes: Int?
     /// Whether the menu-bar icon shows a live countdown for timed sessions.
     public var showCountdownInMenuBar: Bool
     /// Whether the menu panel shows its option toggles and app entries, or the
@@ -149,6 +152,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         virtualDisplay: VirtualDisplayConfig? = nil,
         thermalSafety: ThermalSafetyConfig? = nil,
         pauseBelowBatteryPercent: Int? = nil,
+        pauseWhenOfflineMinutes: Int? = nil,
         showCountdownInMenuBar: Bool = false,
         menuPanelExpanded: Bool = true,
         menuCustomizationEnabled: Bool = false,
@@ -192,6 +196,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         self.virtualDisplay = virtualDisplay
         self.thermalSafety = thermalSafety
         self.pauseBelowBatteryPercent = pauseBelowBatteryPercent.map(Self.clampedBatteryPausePercent)
+        self.pauseWhenOfflineMinutes = pauseWhenOfflineMinutes.map(OfflinePausePolicy.clampedGraceMinutes)
         self.showCountdownInMenuBar = showCountdownInMenuBar
         self.menuPanelExpanded = menuPanelExpanded
         self.menuCustomizationEnabled = menuCustomizationEnabled
@@ -302,6 +307,8 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         thermalSafety = try c.decodeIfPresent(ThermalSafetyConfig.self, forKey: .thermalSafety)
         pauseBelowBatteryPercent = try c.decodeIfPresent(Int.self, forKey: .pauseBelowBatteryPercent)
             .map(Self.clampedBatteryPausePercent)
+        pauseWhenOfflineMinutes = (try? c.decodeIfPresent(Int.self, forKey: .pauseWhenOfflineMinutes))
+            .map(OfflinePausePolicy.clampedGraceMinutes)
         showCountdownInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showCountdownInMenuBar) ?? false
         menuPanelExpanded = try c.decodeIfPresent(Bool.self, forKey: .menuPanelExpanded) ?? true
         // Menu customization was introduced as an opt-in. A settings blob from

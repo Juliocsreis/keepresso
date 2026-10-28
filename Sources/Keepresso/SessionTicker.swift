@@ -28,6 +28,12 @@ final class SessionTicker {
     /// when the host wires it, which it does only while the mode is on.
     private let gameFrontmost: (() -> Bool)?
     private var thermalArming = ThermalArming()
+    /// Lets a lid-closed Mac sleep once it has been offline too long. `nil`
+    /// (tests, previews) leaves the offline reading `.unknown`.
+    private let offlinePause: OfflinePauseController?
+    /// Whether the hotspot fallback is mid-connection; the offline pause
+    /// waits for it.
+    private let hotspotConnecting: (() -> Bool)?
     /// Runs after each reconcile, e.g. to mirror session state to the widget.
     private let onTick: (() -> Void)?
     private var timer: Timer?
@@ -41,6 +47,8 @@ final class SessionTicker {
         lid: LidStateReading = IORegistryLidState(),
         externalDisplay: DisplayMonitoring = CoreGraphicsDisplayMonitor(),
         gameFrontmost: (() -> Bool)? = nil,
+        offlinePause: OfflinePauseController? = nil,
+        hotspotConnecting: (() -> Bool)? = nil,
         onThermalEffects: (([ThermalEffect]) -> Void)? = nil,
         onTick: (() -> Void)? = nil
     ) {
@@ -52,6 +60,8 @@ final class SessionTicker {
         self.lid = lid
         self.externalDisplay = externalDisplay
         self.gameFrontmost = gameFrontmost
+        self.offlinePause = offlinePause
+        self.hotspotConnecting = hotspotConnecting
         self.onThermalEffects = onThermalEffects
         self.onTick = onTick
     }
@@ -84,10 +94,15 @@ final class SessionTicker {
                     // closedDisplay.isEnabled is read at launch and refreshed
                     // on every toggle and menu open, so it's current by the
                     // time a lid can close on a configured override.
-                    // At most one lid read a tick, shared by the thermal arming
-                    // and the display reading below, and skipped entirely when
-                    // neither of them would look at it.
+                    // At most one lid read a tick, shared by the thermal arming,
+                    // the offline pause, and the display reading below, and
+                    // skipped entirely when none of them would look at it. The
+                    // offline pause only needs it while the override is on or
+                    // a pause it latched is waiting for the lid to open.
+                    let offlineNeedsLid = session.consumesOfflineReading
+                        && (closedDisplay?.isEnabled == true || self?.offlinePause?.isPaused == true)
                     let needsLid = self?.thermalGuard != nil || session.consumesDisplayReading
+                        || offlineNeedsLid
                     let lidClosed = needsLid ? self?.lid.isClosed() : nil
                     var thermal = ThermalReading.unknown
                     if let guard_ = self?.thermalGuard, let self {
@@ -101,6 +116,25 @@ final class SessionTicker {
                             thermal = guard_.readingForSession
                         }
                     }
+                    // One external-display sweep a tick, only with the lid read
+                    // shut and someone (offline pause, display reading) needing it.
+                    let hasExternal: Bool? = lidClosed == true
+                        && (offlineNeedsLid || session.consumesDisplayReading)
+                        ? self?.externalDisplay.current.hasExternalDisplay : nil
+                    // The offline pause arms on the same lid-shut-with-override
+                    // condition as the thermal net, minus a lid shut over an
+                    // external display, and latches on its own: once paused it
+                    // holds until the lid opens, a display is attached, or the
+                    // internet is back.
+                    var offline = OfflineReading.unknown
+                    if session.consumesOfflineReading, let self, let offlinePause = self.offlinePause {
+                        offline = offlinePause.tick(
+                            lidClosed: lidClosed,
+                            overrideActive: closedDisplay?.isEnabled,
+                            externalDisplay: lidClosed == false ? false : hasExternal,
+                            hotspotConnecting: self.hotspotConnecting?() ?? false
+                        )
+                    }
                     // Lid + external layout for the display assertion and the
                     // clamshell dark force. The display list is only swept once
                     // the lid actually reads shut. A nil lid read stays
@@ -110,7 +144,7 @@ final class SessionTicker {
                     var display = SessionController.DisplayReading.unknown
                     if session.consumesDisplayReading, let lidClosed, let self {
                         if lidClosed {
-                            display = self.externalDisplay.current.hasExternalDisplay
+                            display = (hasExternal ?? self.externalDisplay.current.hasExternalDisplay)
                                 ? .lidShutWithExternal
                                 : .lidShutNoExternal
                         } else {
@@ -121,6 +155,7 @@ final class SessionTicker {
                         systemIdleSeconds: session.consumesIdleReading ? Self.systemIdleSeconds() : nil,
                         battery: battery,
                         thermal: thermal,
+                        offline: offline,
                         display: display,
                         gameFrontmost: self?.gameFrontmost?() ?? false
                     )

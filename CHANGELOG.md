@@ -3,6 +3,27 @@
 All notable changes to Keepresso are documented here, grouped by release.
 Versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- **Sleep when offline with the lid closed.** An opt-in switch under
+  Closed-display mode. With the lid closed and closed-display mode holding
+  the Mac awake, Keepresso checks the internet every 20 seconds, and if it
+  stays unreachable for the chosen time (3 to 30 minutes, 5 by default), it
+  pauses the session and lets the Mac sleep. A login page counts as offline.
+  When the Mac has no network at all, hotspot fallback (if set up) gets a try
+  first. Opening the lid, or the internet coming back while the Mac is still
+  awake, resumes the session. A lid shut over an external display (a Mac in
+  use as a desktop) is left alone. The pause is logged and can fire an event
+  hook.
+
+### Fixed
+
+- **Fan control on M5 Macs.** Fan boost and the fan test now work on Macs
+  whose firmware names the manual-mode key `F0md`, and a fan whose speed
+  can't be set is handed straight back to macOS.
+
 ## [1.28.0] - 2026-10-22
 
 ### Added

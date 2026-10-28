@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "低电量模式已启用。";
 "Initializing the helper…" = "正在初始化辅助程序…";
 "Updating the helper…" = "正在更新辅助程序…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso 已因没有网络暂停，但没有管理员助理（偏好设置 ▸ 通用）就无法关闭合盖模式。";
+"No internet with the lid closed, letting the Mac sleep" = "合盖时没有网络，正在让 Mac 睡眠";
+"Let the Mac sleep when offline with the lid closed" = "合盖时离线则让 Mac 睡眠";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "合盖且合盖模式开启时，Keepresso 每 20 秒检查一次网络。如果在这段时间内一直无法连接，会话会暂停，Mac 可以睡眠。如果 Mac 完全没有网络，会先尝试连接备用热点（如已设置）。打开盖子即可恢复会话。";

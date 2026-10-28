@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Wi-Fiネットワークの検索には位置情報へのアクセスを許可してください。";
 "A network connection is already available." = "ネットワーク接続はすでに利用できます。";
 "Turn on Wi-Fi to connect to the hotspot." = "ホットスポットに接続するにはWi-Fiをオンにしてください。";
+"Not started, no internet with the lid closed" = "未開始、蓋が閉じた状態でインターネットに接続できません";
+"Paused, no internet with the lid closed" = "一時停止、蓋が閉じた状態でインターネットに接続できません";
+"Paused, no internet" = "インターネットなしで一時停止";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "蓋が閉じた状態で Mac が長時間オフラインのため、Keepresso はスリープを許可しています。蓋を開けるとセッションが再開します。";
+"Resumed, internet or lid back" = "再開、インターネット回復または蓋が開かれました";
+"Offline pause" = "オフライン一時停止";

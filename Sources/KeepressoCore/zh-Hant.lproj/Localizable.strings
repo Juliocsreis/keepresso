@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "允許位置取用以尋找 Wi-Fi 網路。";
 "A network connection is already available." = "已有可用的網路連線。";
 "Turn on Wi-Fi to connect to the hotspot." = "開啟 Wi-Fi 以連線至熱點。";
+"Not started, no internet with the lid closed" = "未啟動，闔蓋時沒有網路";
+"Paused, no internet with the lid closed" = "已暫停，闔蓋時沒有網路";
+"Paused, no internet" = "已暫停，沒有網路";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "已闔蓋且 Mac 離線時間過長，因此 Keepresso 讓它進入睡眠。打開上蓋即可恢復工作階段。";
+"Resumed, internet or lid back" = "已恢復，網路已恢復或已打開上蓋";
+"Offline pause" = "離線暫停";

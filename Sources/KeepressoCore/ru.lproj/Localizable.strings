@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Разрешите доступ к геопозиции для поиска сетей Wi-Fi.";
 "A network connection is already available." = "Сетевое подключение уже доступно.";
 "Turn on Wi-Fi to connect to the hotspot." = "Включите Wi-Fi для подключения к точке доступа.";
+"Not started, no internet with the lid closed" = "Не запущено, нет интернета при закрытой крышке";
+"Paused, no internet with the lid closed" = "Приостановлено, нет интернета при закрытой крышке";
+"Paused, no internet" = "Приостановлено, нет интернета";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "Крышка закрыта, а Mac слишком долго без интернета, поэтому Keepresso позволяет ему уйти в сон. Если открыть крышку, сеанс возобновится.";
+"Resumed, internet or lid back" = "Возобновлено, интернет вернулся или крышка открыта";
+"Offline pause" = "Пауза без интернета";

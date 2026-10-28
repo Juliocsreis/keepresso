@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "A Wi-Fi-hálózatok kereséséhez engedélyezd a helyhozzáférést.";
 "A network connection is already available." = "Már elérhető egy hálózati kapcsolat.";
 "Turn on Wi-Fi to connect to the hotspot." = "A hotspothoz való csatlakozáshoz kapcsold be a Wi-Fi-t.";
+"Not started, no internet with the lid closed" = "Nem indult el, nincs internet csukott fedélnél";
+"Paused, no internet with the lid closed" = "Szüneteltetve, nincs internet csukott fedélnél";
+"Paused, no internet" = "Szüneteltetve, nincs internet";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "A fedél csukva van, és a Mac túl régóta offline, ezért a Keepresso hagyja elaludni. A fedél felnyitásával a munkamenet folytatódik.";
+"Resumed, internet or lid back" = "Folytatva, visszajött az internet vagy felnyílt a fedél";
+"Offline pause" = "Offline szünet";

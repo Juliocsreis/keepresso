@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "El modo de bajo consumo está activo.";
 "Initializing the helper…" = "Iniciando el asistente…";
 "Updating the helper…" = "Actualizando el asistente…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso se pausó por falta de internet pero no puede desactivar el modo con pantalla cerrada sin el asistente de administrador (Ajustes ▸ General).";
+"No internet with the lid closed, letting the Mac sleep" = "Sin internet con la tapa cerrada, dejando que el Mac repose";
+"Let the Mac sleep when offline with the lid closed" = "Dejar que el Mac repose sin internet con la tapa cerrada";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Con la tapa cerrada y el modo con pantalla cerrada activo, Keepresso comprueba internet cada 20 segundos. Si sigue sin conexión durante este tiempo, la sesión se pausa y el Mac puede reposar. Si el Mac no tiene ninguna red, primero se intenta el punto de acceso de respaldo (si está configurado). Al abrir la tapa, la sesión se reanuda.";

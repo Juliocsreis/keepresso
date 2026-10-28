@@ -23,6 +23,7 @@ public enum SessionEventKind: String, Codable, Equatable, Sendable {
     case leaseReleased
     case batteryPaused
     case thermalPaused
+    case offlinePaused
     case startRefused
 }
 

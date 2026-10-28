@@ -934,6 +934,21 @@ private struct GeneralTab: View {
                 ))
                 Text("Mutes the built-in speakers with the lid closed and closed-display mode active. Headphones and other outputs keep playing. Unmutes when the lid opens or the mode ends, unless you had muted them yourself.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Let the Mac sleep when offline with the lid closed", isOn: Binding(
+                    get: { model.offlinePauseEnabled }, set: { model.offlinePauseEnabled = $0 }
+                ))
+                if model.offlinePauseEnabled {
+                    Picker("After", selection: Binding(
+                        get: { model.offlinePauseMinutes },
+                        set: { model.offlinePauseMinutes = $0 }
+                    )) {
+                        ForEach(OfflinePausePolicy.graceMinuteChoices, id: \.self) { minutes in
+                            Text(L("%d min", minutes)).tag(minutes)
+                        }
+                    }
+                }
+                Text("With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Text("Turn this on and then quit, and Keepresso asks whether to turn it off first.")
                 .font(.caption)

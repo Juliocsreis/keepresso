@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "Az alacsony töltöttségű mód aktív.";
 "Initializing the helper…" = "A segéd indítása…";
 "Updating the helper…" = "A segéd frissítése…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "A Keepresso szüneteltetve lett internet hiányában, de a rendszergazdai segéd nélkül nem tudja kikapcsolni a csukott fedél módot (Beállítások ▸ Általános).";
+"No internet with the lid closed, letting the Mac sleep" = "Nincs internet csukott fedélnél, a Mac elalhat";
+"Let the Mac sleep when offline with the lid closed" = "A Mac elalhat, ha csukott fedélnél nincs internet";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Csukott fedélnél, bekapcsolt csukott fedél móddal a Keepresso 20 másodpercenként ellenőrzi az internetet. Ha ennyi ideig elérhetetlen marad, a munkamenet szünetel, és a Mac elalhat. Ha a Macnek egyáltalán nincs hálózata, előbb a beállított hotspot-tartalékot próbálja. A fedél felnyitásával a munkamenet folytatódik.";

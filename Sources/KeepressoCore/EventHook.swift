@@ -8,6 +8,7 @@ public enum HookEvent: String, Codable, CaseIterable, Sendable {
     case triggerReleased
     case batteryPaused
     case thermalPaused
+    case offlinePaused
     case thermalStageChanged
     case agentWentIdle
 
@@ -20,6 +21,7 @@ public enum HookEvent: String, Codable, CaseIterable, Sendable {
         case .triggerReleased:      return L("Trigger released")
         case .batteryPaused:        return L("Battery pause")
         case .thermalPaused:        return L("Thermal pause")
+        case .offlinePaused:        return L("Offline pause")
         case .thermalStageChanged:  return L("Thermal stage changed")
         case .agentWentIdle:        return L("Agent went idle")
         }
@@ -102,6 +104,8 @@ public enum EventHookPolicy {
             return [.batteryPaused, .sessionEnded]
         case .thermalPaused:
             return [.thermalPaused, .sessionEnded]
+        case .offlinePaused:
+            return [.offlinePaused, .sessionEnded]
         case .startRefused, .none:
             return []
         }

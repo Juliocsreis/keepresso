@@ -1849,3 +1849,74 @@ private func leaseSummary(
     #expect(controller.isActive == false)
     #expect(controller.log.events.last?.kind == .leaseReleased)
 }
+
+// MARK: - Offline pause
+
+@MainActor
+@Test func offlineReadingForceStopsAndResumesOnClear() {
+    let (controller, fake, _) = makeController()
+    controller.pauseWhenOffline = true
+    controller.start()
+    #expect(controller.isActive)
+
+    controller.reconcile(offline: .offline)
+    #expect(controller.isActive == false)
+    #expect(controller.pausedByOffline)
+    #expect(controller.isSafetyPaused)
+    #expect(fake.held.isEmpty)
+    #expect(controller.log.events.contains { $0.kind == .offlinePaused })
+
+    // Lid opened or internet back: the manual session resumes on its own.
+    controller.reconcile(offline: .clear)
+    #expect(controller.pausedByOffline == false)
+    #expect(controller.isActive)
+    #expect(fake.held == [.system])
+}
+
+@MainActor
+@Test func offlinePauseHoldsAcrossUnknownReadingsAndStarts() {
+    let (controller, fake, _) = makeController()
+    controller.pauseWhenOffline = true
+    controller.reconcile(offline: .offline)
+    #expect(controller.pausedByOffline)
+
+    controller.start()
+    #expect(controller.isActive == false)
+    #expect(controller.log.events.last?.kind == .startRefused)
+    controller.reconcile()
+    #expect(controller.pausedByOffline)
+    #expect(fake.held.isEmpty)
+}
+
+@MainActor
+@Test func offlinePauseBlocksTriggerGate() {
+    let (controller, _, _) = makeController()
+    controller.pauseWhenOffline = true
+    controller.triggerGate = StubGate(true)
+    controller.reconcile(offline: .offline)
+    controller.reconcile(offline: .offline)
+    #expect(controller.isActive == false)
+    controller.reconcile(offline: .clear)
+    #expect(controller.isActive)
+}
+
+@MainActor
+@Test func turningOfflinePauseOffClearsTheLatch() {
+    let (controller, _, _) = makeController()
+    controller.pauseWhenOffline = true
+    controller.reconcile(offline: .offline)
+    #expect(controller.pausedByOffline)
+    controller.pauseWhenOffline = false
+    #expect(controller.pausedByOffline == false)
+    controller.start()
+    #expect(controller.isActive)
+}
+
+@MainActor
+@Test func offlineReadingIgnoredWhenFeatureOff() {
+    let (controller, _, _) = makeController()
+    controller.start()
+    controller.reconcile(offline: .offline)
+    #expect(controller.isActive)
+    #expect(controller.pausedByOffline == false)
+}

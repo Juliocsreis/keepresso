@@ -88,8 +88,8 @@ public final class SessionController {
 
     /// What to do to the Mac when a session ends on its own. Default none.
     /// Debounced by ``endActionDebounce`` so a trigger flap or an immediate
-    /// restart cancels the pending action. Never runs on battery or thermal
-    /// pauses (those manage sleep themselves).
+    /// restart cancels the pending action. Never runs on battery, thermal, or
+    /// offline pauses (those manage sleep themselves).
     public var endAction: SessionEndAction = .none
 
     /// Seconds to wait after a natural session end before performing
@@ -275,7 +275,29 @@ public final class SessionController {
     /// The thermal twin of ``batteryRefusedStarts``.
     public private(set) var thermalRefusedStarts = 0
 
-    /// A manual session a safety pause (battery or thermal) force-stopped,
+    /// Whether the offline pause is enabled (lid closed, no internet for the
+    /// chosen grace period). Off clears any stale latch at once, like
+    /// ``pauseWhenHot``.
+    public var pauseWhenOffline = false {
+        didSet {
+            if !pauseWhenOffline { pausedByOffline = false }
+        }
+    }
+
+    /// True once the offline guard force-stopped the session so a lid-closed
+    /// Mac with no internet can sleep. Reactivation waits for the guard's
+    /// all-clear: the lid opening, or the internet coming back.
+    public private(set) var pausedByOffline = false
+
+    /// The offline twin of ``batteryRefusedStarts``.
+    public private(set) var offlineRefusedStarts = 0
+
+    /// Any safety pause is holding the session off (battery, heat, offline).
+    public var isSafetyPaused: Bool {
+        pausedByBattery || pausedByThermal || pausedByOffline
+    }
+
+    /// A manual session a safety pause (battery, thermal, or offline) force-stopped,
     /// remembered so ``reconcile`` restarts it when the pause lifts. Only
     /// manual sessions need this: trigger-gated and lease-held sessions
     /// reactivate through the gate and lease demand on the next tick, and
@@ -297,9 +319,9 @@ public final class SessionController {
     /// preventing sleep".
     public private(set) var lastAssertionError: String?
 
-    /// Refused start attempts across both safety pauses, for the menu's
+    /// Refused start attempts across the safety pauses, for the menu's
     /// "that didn't work, and here's why" shake.
-    public var refusedStarts: Int { batteryRefusedStarts + thermalRefusedStarts }
+    public var refusedStarts: Int { batteryRefusedStarts + thermalRefusedStarts + offlineRefusedStarts }
 
     /// End action waiting out ``endActionDebounce``, or `nil` when none.
     private var pendingEndAction: SessionEndAction?
@@ -371,6 +393,18 @@ public final class SessionController {
             log.record(
                 began: false,
                 reason: L("Not started, the Mac is running hot"),
+                kind: .startRefused,
+                batteryPercent: lastBatteryPercent,
+                at: now()
+            )
+            return
+        }
+        // And for the offline pause: the lid is still closed with no internet.
+        if pausedByOffline {
+            offlineRefusedStarts += 1
+            log.record(
+                began: false,
+                reason: L("Not started, no internet with the lid closed"),
                 kind: .startRefused,
                 batteryPercent: lastBatteryPercent,
                 at: now()
@@ -490,7 +524,7 @@ public final class SessionController {
         }
     }
 
-    /// Force-stop for a safety pause (battery or thermal), remembering a
+    /// Force-stop for a safety pause (battery, thermal, or offline), remembering a
     /// manual session so the pause lifting restarts it. Trigger-gated and
     /// lease-held sessions reactivate through the gate and lease demand, so
     /// only a session the manual toggle owns is recorded; anything else would
@@ -657,6 +691,11 @@ public final class SessionController {
         pauseWhenHot
     }
 
+    /// Whether an offline reading has any effect here: the offline pause is on.
+    public var consumesOfflineReading: Bool {
+        pauseWhenOffline
+    }
+
     // MARK: - Reconciliation
 
     /// Bring live power assertions in line with current state, expire timed
@@ -681,11 +720,15 @@ public final class SessionController {
     ///     prevent-display-sleep is on. `.unknown` reuses the last known
     ///     reading so a lid-property flutter or an out-of-band reconcile cannot
     ///     thrash the assertion; with no prior reading it fails open as usable.
+    ///   - offline: the offline guard's verdict (lid closed, no internet past
+    ///     the grace period). `.unknown` leaves the latch untouched, like
+    ///     `thermal`.
     public func reconcile(
         now: Date? = nil,
         systemIdleSeconds: TimeInterval? = nil,
         battery: BatteryReading = .unknown,
         thermal: ThermalReading = .unknown,
+        offline: OfflineReading = .unknown,
         display: DisplayReading = .unknown,
         gameFrontmost: Bool = false
     ) {
@@ -793,6 +836,40 @@ public final class SessionController {
                 pausedByThermal = false
             case .unknown:
                 if pausedByThermal {
+                    triggerGate?.tick()
+                    return
+                }
+            }
+        }
+
+        // The offline pause, same shape as the thermal block: the guard owns
+        // the grace period and when to clear (lid open or internet back).
+        if !pauseWhenOffline {
+            if pausedByOffline { pausedByOffline = false }
+        } else {
+            switch offline {
+            case .offline:
+                if !pausedByOffline {
+                    pausedByOffline = true
+                    cancelPendingEndAction()
+                    if isActive {
+                        safetyStop(
+                            reason: L("Paused, no internet with the lid closed"),
+                            effects: .safetyPause(kind: .offlinePaused),
+                            notice: (
+                                title: L("Paused, no internet"),
+                                body: L("The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session.")
+                            ),
+                            resumeReason: L("Resumed, internet or lid back")
+                        )
+                    }
+                }
+                triggerGate?.tick()
+                return
+            case .clear:
+                if pausedByOffline { pausedByOffline = false }
+            case .unknown:
+                if pausedByOffline {
                     triggerGate?.tick()
                     return
                 }

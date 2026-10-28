@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Permita acesso à localização para encontrar redes Wi-Fi.";
 "A network connection is already available." = "Já existe uma conexão de rede disponível.";
 "Turn on Wi-Fi to connect to the hotspot." = "Ative o Wi-Fi para conectar ao hotspot.";
+"Not started, no internet with the lid closed" = "Não iniciado, sem internet com a tampa fechada";
+"Paused, no internet with the lid closed" = "Pausado, sem internet com a tampa fechada";
+"Paused, no internet" = "Pausado, sem internet";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "A tampa está fechada e o Mac está sem internet há tempo demais, então o Keepresso está deixando ele repousar. Abrir a tampa retoma a sessão.";
+"Resumed, internet or lid back" = "Retomado, internet de volta ou tampa aberta";
+"Offline pause" = "Pausa sem internet";

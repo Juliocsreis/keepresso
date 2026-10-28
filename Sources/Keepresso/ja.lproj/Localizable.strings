@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "低電力モードが有効です。";
 "Initializing the helper…" = "ヘルパーを初期化中…";
 "Updating the helper…" = "ヘルパーを更新中…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso はインターネットがないため一時停止しましたが、管理者ヘルパーがないとクラムシェルモードをオフにできません（設定 ▸ 一般）。";
+"No internet with the lid closed, letting the Mac sleep" = "蓋が閉じた状態でインターネットがないため、Mac をスリープさせます";
+"Let the Mac sleep when offline with the lid closed" = "蓋を閉じた状態でオフラインなら Mac をスリープさせる";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "蓋が閉じていてクラムシェルモードがオンのとき、Keepresso は 20 秒ごとにインターネットを確認します。この時間ずっと接続できなければ、セッションを一時停止して Mac をスリープさせます。Mac がまったくネットワークに接続していない場合は、先に予備のホットスポット（設定済みの場合）を試します。蓋を開けるとセッションが再開します。";

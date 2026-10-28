@@ -273,3 +273,9 @@
 "Allow Location access to find Wi-Fi networks." = "Wi-Fi ağlarını bulmak için konum erişimine izin verin.";
 "A network connection is already available." = "Zaten bir ağ bağlantısı var.";
 "Turn on Wi-Fi to connect to the hotspot." = "Erişim noktasına bağlanmak için Wi-Fi’yi açın.";
+"Not started, no internet with the lid closed" = "Başlatılmadı, kapak kapalıyken internet yok";
+"Paused, no internet with the lid closed" = "Duraklatıldı, kapak kapalıyken internet yok";
+"Paused, no internet" = "Duraklatıldı, internet yok";
+"The lid is closed and the Mac has been offline too long, so Keepresso is letting it sleep. Opening the lid resumes the session." = "Kapak kapalı ve Mac çok uzun süredir çevrimdışı, bu yüzden Keepresso uyumasına izin veriyor. Kapağı açmak oturumu sürdürür.";
+"Resumed, internet or lid back" = "Devam edildi, internet geri geldi veya kapak açıldı";
+"Offline pause" = "Çevrimdışı duraklatma";

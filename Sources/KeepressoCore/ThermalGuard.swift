@@ -216,6 +216,11 @@ public struct ThermalArming: Sendable, Equatable {
 
     public init() {}
 
+    /// The last known lid reading (latched across `nil` reads).
+    public var latchedLidClosed: Bool { lidClosed }
+    /// The last known sleep-override reading (latched across `nil` reads).
+    public var latchedOverrideActive: Bool { overrideActive }
+
     /// Fold in this tick's readings and return the current verdict.
     public mutating func update(lidClosed: Bool?, sleepOverrideActive: Bool?) -> Bool {
         if let lidClosed { self.lidClosed = lidClosed }

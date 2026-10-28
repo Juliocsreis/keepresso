@@ -921,3 +921,7 @@
 "Low Power Mode is active." = "Режим энергосбережения включён.";
 "Initializing the helper…" = "Запуск помощника…";
 "Updating the helper…" = "Обновление помощника…";
+"Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)." = "Keepresso поставил сеанс на паузу из-за отсутствия интернета, но не может отключить режим закрытой крышки без помощника с правами администратора (Настройки ▸ Общие).";
+"No internet with the lid closed, letting the Mac sleep" = "Нет интернета при закрытой крышке, Mac может уйти в сон";
+"Let the Mac sleep when offline with the lid closed" = "Разрешать Mac уходить в сон без интернета при закрытой крышке";
+"With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "При закрытой крышке и включённом режиме закрытой крышки Keepresso проверяет интернет каждые 20 секунд. Если он недоступен всё это время, сеанс ставится на паузу и Mac может уйти в сон. Если у Mac вообще нет сети, сначала пробуется резервная точка доступа (если она настроена). Если открыть крышку, сеанс возобновится.";

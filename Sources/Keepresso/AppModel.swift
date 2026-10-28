@@ -65,6 +65,9 @@ final class AppModel {
         pressure: SystemThermalPressure(),
         sensors: MachineThermalSensors()
     )
+    /// Lets a lid-closed Mac sleep after it has been offline for the chosen
+    /// grace period. Off while its grace is nil; ticked by ``SessionTicker``.
+    let offlinePause = OfflinePauseController()
     /// Registration and status of the privileged helper daemon, the one-time
     /// password alternative to the per-run osascript prompts.
     let helper: HelperManager
@@ -190,6 +193,8 @@ final class AppModel {
         self.session.endAction = loaded.endAction
         self.session.pauseBelowBatteryPercent = loaded.pauseBelowBatteryPercent
         self.session.pauseWhenHot = loaded.thermalSafety?.stopBrewing ?? false
+        self.session.pauseWhenOffline = loaded.pauseWhenOfflineMinutes != nil
+        self.offlinePause.graceMinutes = loaded.pauseWhenOfflineMinutes
         // Leases surviving a relaunch are picked up by the first tick's
         // directory scan; no launch-time special case.
         self.session.leases = loaded.automationLeasesEnabled ? leaseEngine : nil
@@ -1320,6 +1325,48 @@ final class AppModel {
         }
     }
 
+    // MARK: - Offline pause
+
+    /// With the lid closed, let the Mac sleep once it has had no internet for
+    /// ``offlinePauseMinutes``. Like the battery pause, it announces itself in
+    /// a notification, so enabling it requests permission.
+    var offlinePauseEnabled: Bool {
+        get { settings.pauseWhenOfflineMinutes != nil }
+        set {
+            settings.pauseWhenOfflineMinutes = newValue
+                ? (settings.pauseWhenOfflineMinutes ?? OfflinePausePolicy.defaultGraceMinutes)
+                : nil
+            applyOfflinePause(settings.pauseWhenOfflineMinutes)
+            if newValue { notifier.requestAuthorization() }
+            persist()
+        }
+    }
+
+    /// The grace period shown in the picker (the default while off).
+    var offlinePauseMinutes: Int {
+        get { settings.pauseWhenOfflineMinutes ?? OfflinePausePolicy.defaultGraceMinutes }
+        set {
+            // Only adjusts the grace period; turning the feature on or off is
+            // ``offlinePauseEnabled``'s job.
+            guard settings.pauseWhenOfflineMinutes != nil else { return }
+            settings.pauseWhenOfflineMinutes = OfflinePausePolicy.clampedGraceMinutes(newValue)
+            applyOfflinePause(settings.pauseWhenOfflineMinutes)
+            persist()
+        }
+    }
+
+    /// Push the offline-pause setting to the session latch and the guard.
+    private func applyOfflinePause(_ minutes: Int?) {
+        session.pauseWhenOffline = minutes != nil
+        offlinePause.graceMinutes = minutes
+    }
+
+    /// Whether the hotspot fallback is mid-connection, so the offline pause
+    /// waits for it instead of letting the Mac sleep under it.
+    var hotspotConnecting: Bool {
+        settings.hotspotFallback.enabled && hotspot.status == .connecting
+    }
+
     // MARK: - Thermal safety
 
     /// Whether this Mac has any fans, read once at launch like
@@ -1533,10 +1580,10 @@ final class AppModel {
                 )
                 if thermalLiftedClosedDisplay {
                     thermalLiftedClosedDisplay = false
-                    // Battery pause still needs closed-display off. Hand the
-                    // restore latch over rather than turning the setting back
-                    // on underneath a low-battery pause.
-                    if session.pausedByBattery {
+                    // A battery or offline pause still needs closed-display
+                    // off. Hand the restore latch over rather than turning
+                    // the setting back on underneath that pause.
+                    if session.pausedByBattery || session.pausedByOffline {
                         batteryLiftedClosedDisplay = true
                     } else if helperInstalled {
                         setClosedDisplay(true, userInitiated: false)
@@ -1878,6 +1925,7 @@ final class AppModel {
         session.endAction = newSettings.endAction
         session.pauseBelowBatteryPercent = newSettings.pauseBelowBatteryPercent
         session.pauseWhenHot = newSettings.thermalSafety?.stopBrewing ?? false
+        applyOfflinePause(newSettings.pauseWhenOfflineMinutes)
         session.leases = newSettings.automationLeasesEnabled ? leaseEngine : nil
         hookDispatcher.hooks = newSettings.eventHooks
         applyWakeScheduleToSystem()
@@ -1906,6 +1954,7 @@ final class AppModel {
         // granted notifications would let a battery or thermal pause stop the
         // session with no banner, looking as if the app just quit.
         if newSettings.pauseBelowBatteryPercent != nil
+            || newSettings.pauseWhenOfflineMinutes != nil
             || newSettings.thermalSafety?.stopBrewing == true
             || newSettings.reminderAfter != nil
             || newSettings.notifyOnEnd
@@ -3293,7 +3342,9 @@ final class AppModel {
     /// the session, so this path is the sticky case (see
     /// ``BatteryPauseClosedDisplay``).
     func syncBatteryPauseClosedDisplay() {
-        let paused = session.pausedByBattery
+        // The offline pause needs the same lift: with sticky closed-display
+        // on, stopping the session alone would keep a lid-closed Mac awake.
+        let paused = session.pausedByBattery || session.pausedByOffline
         let onlyWhileBrewing = settings.closedDisplayOnlyWhileBrewing
         // Session-tied automation owns the setting; drop any sticky-restore
         // latch so a later plug-in cannot turn closed-display on against it.
@@ -3325,7 +3376,9 @@ final class AppModel {
             if !sawBatteryPaused {
                 notifier.notify(
                     title: L("Closed-display mode left on"),
-                    body: L("Keepresso paused on low battery but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)."),
+                    body: session.pausedByBattery
+                        ? L("Keepresso paused on low battery but can't switch off closed-display mode without the administrator helper (Preferences ▸ General).")
+                        : L("Keepresso paused with no internet but can't switch off closed-display mode without the administrator helper (Preferences ▸ General)."),
                     sound: false
                 )
             }
