@@ -10,6 +10,17 @@ permissions:
   contents: read
 
 jobs:
+  public-hygiene:
+    name: Public repo hygiene
+    # This repo is public. Fail fast if a commit tracks signing material,
+    # internal docs, tokens, or personal details like an Apple ID email or a
+    # real home folder path. Pure Python, no Xcode, finishes in seconds.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan tracked files
+        run: python3 scripts/check-public-hygiene.py
+
   localization:
     name: Localization
     # Pure Python over the catalogs, so it needs no Xcode and finishes in
