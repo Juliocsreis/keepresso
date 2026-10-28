@@ -17,7 +17,8 @@ Store**, because the App Sandbox blocks the `IOPMAssertion` power APIs the app
 depends on. Keep `ENABLE_APP_SANDBOX: false` in `project.yml` — sandboxing the
 app silently breaks its core function. The repo is **public**; keep commit
 messages tidy and release-worthy. Follow `AGENTS.md` for what must never be
-committed, and run `python3 scripts/check-public-hygiene.py` before committing.
+committed, and run `python3 scripts/check-public-hygiene.py --staged` before
+committing.
 
 ## Layout
 

@@ -30,15 +30,19 @@ or commit anything, make sure it belongs in a public open-source repo.
 
 ### Check before you commit
 
-Run the same check CI runs:
+Check exactly what the next commit will record (staged content, read from the
+index):
 
 ```sh
-python3 scripts/check-public-hygiene.py
+python3 scripts/check-public-hygiene.py --staged
 ```
 
-It scans every tracked file for force-added ignored files, forbidden paths,
-token and private key formats, Apple ID emails, home folder paths, and files
-over 5 MB. To check files before staging them, pass their paths as arguments.
+CI runs the same script with no arguments, which scans every tracked file.
+It fails on force-added ignored files, forbidden paths, private keys and
+token formats (in binary files too), email addresses other than the project
+contact, home folder paths that are not placeholder accounts, macOS temp
+paths, and files over 5 MB. CI only runs after a push, so a leak it catches
+is already public: run the staged check first.
 
 If a line is placeholder data that trips a rule (a test fixture path, a doc
 example), add a `hygiene: allow` comment on that line. Never use the marker to

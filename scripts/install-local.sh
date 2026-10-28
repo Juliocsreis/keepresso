@@ -52,7 +52,7 @@ command -v xcodegen >/dev/null 2>&1 \
   || die "XcodeGen not found. Install it with: brew install xcodegen"
 security find-identity -v -p codesigning | grep -q "Apple Development" \
   || die "No Apple Development certificate found in your keychain."
-[[ "$TEAM" =~ ^[A-Z0-9]{10}$ ]] \
+[[ "$TEAM" =~ ^[A-Z0-9]{10}$ && "$TEAM" != "XXXXXXXXXX" ]] \
   || die "Set KEEPRESSO_TEAM to your 10-character Team ID (see --help)."
 
 # --- Build -------------------------------------------------------------------
