@@ -56,8 +56,9 @@ public struct OfflinePausePolicy: Equatable, Sendable {
     /// Snap any stored value onto the offered choices (nearest, ties upward).
     public static func clampedGraceMinutes(_ raw: Int) -> Int {
         graceMinuteChoices.min { lhs, rhs in
-            let l = abs(lhs - raw), r = abs(rhs - raw)
-            return l == r ? lhs > rhs : l < r
+            let left = abs(lhs - raw)
+            let right = abs(rhs - raw)
+            return left == right ? lhs > rhs : left < right
         } ?? defaultGraceMinutes
     }
 

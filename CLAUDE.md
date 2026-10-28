@@ -71,7 +71,15 @@ swift test --filter timedSessionExpiresOnReconcile   # a single test
 # The app — needs full Xcode + xcodegen (brew install xcodegen)
 xcodegen generate           # regenerate Keepresso.xcodeproj from project.yml
 open Keepresso.xcodeproj    # build/run the Keepresso scheme with ⌘R
+
+# Lint (the same checks the Lint workflow runs on every pull request)
+python3 scripts/lint-swift-changes.py   # swift-format, only lines changed vs origin/main
+ruff check .                            # Python tooling; rules in ruff.toml
 ```
+
+CI also runs actionlint and zizmor on the workflows, CodeQL (Swift, Python,
+Actions), and a weekly check that opens an issue when a newer Sparkle ships
+(Dependabot can't see Sparkle, which is pinned in `project.yml`).
 
 **Toolchain caveat:** with only Command Line Tools (no Xcode.app), `swift test`
 fails — neither XCTest nor swift-testing ships with CLT. To sanity-check core

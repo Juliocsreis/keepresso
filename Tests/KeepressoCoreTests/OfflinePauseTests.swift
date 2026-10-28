@@ -29,14 +29,16 @@ private func step(
     if fill, let last = s.last {
         var t = last + 30
         while t < seconds {
-            _ = s.policy.step(lidClosed: lid, overrideActive: override, externalDisplay: external, probe: probe,
-                              hotspotConnecting: hotspot, graceSeconds: grace, now: t0.addingTimeInterval(t))
+            _ = s.policy.step(
+                lidClosed: lid, overrideActive: override, externalDisplay: external, probe: probe,
+                hotspotConnecting: hotspot, graceSeconds: grace, now: t0.addingTimeInterval(t))
             t += 30
         }
     }
     s.last = seconds
-    return s.policy.step(lidClosed: lid, overrideActive: override, externalDisplay: external, probe: probe,
-                         hotspotConnecting: hotspot, graceSeconds: grace, now: t0.addingTimeInterval(seconds))
+    return s.policy.step(
+        lidClosed: lid, overrideActive: override, externalDisplay: external, probe: probe,
+        hotspotConnecting: hotspot, graceSeconds: grace, now: t0.addingTimeInterval(seconds))
 }
 
 @Test func offlinePausesOnlyAfterTheGracePeriod() {

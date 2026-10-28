@@ -294,12 +294,12 @@ def chrome_top(kicker, headline, clock):
         + text(W / 2, 60, headline, size=19, fill=HEADLINE, weight=800, anchor="middle", extra=' letter-spacing="-.3"')
         + f'<rect x="{pill_x}" y="76" width="{pill_w}" height="28" rx="11" fill="rgba(255,255,255,.055)" stroke="rgba(255,255,255,.1)"/>'
         # wifi
-        + f'<g transform="translate(103 81) scale(.75)" fill="none" stroke="#bdb6ac" stroke-width="2" stroke-linecap="round">'
-          f'<path d="M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></g>'
+        + '<g transform="translate(103 81) scale(.75)" fill="none" stroke="#bdb6ac" stroke-width="2" stroke-linecap="round">'
+          '<path d="M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></g>'
         # battery
-        + f'<g transform="translate(130 83.5) scale(.8)" fill="none" stroke="#bdb6ac" stroke-width="1.5">'
-          f'<rect x="1" y="3" width="22" height="10" rx="3"/><path d="M26 6.5v3" stroke-linecap="round"/>'
-          f'<rect x="3" y="5" width="14" height="6" rx="1.5" fill="#bdb6ac" stroke="none"/></g>'
+        + '<g transform="translate(130 83.5) scale(.8)" fill="none" stroke="#bdb6ac" stroke-width="1.5">'
+          '<rect x="1" y="3" width="22" height="10" rx="3"/><path d="M26 6.5v3" stroke-linecap="round"/>'
+          '<rect x="3" y="5" width="14" height="6" rx="1.5" fill="#bdb6ac" stroke="none"/></g>'
         + clock
     )
 
@@ -382,7 +382,7 @@ def scene_manual():
 
     titles = title_pair("Idle", "System can sleep", sc.vis(off_w, 0.15))
     ticks = [("Awake for 0:00", ON, 2.6), ("Awake for 0:01", 2.6, 3.6), ("Awake for 0:02", 3.6, CHIP)]
-    for i, s in enumerate(range(10)):
+    for i in range(10):
         t0 = CHIP + i
         if t0 >= OFF:
             break
@@ -522,7 +522,7 @@ def scene_lid():
             + g(cup(156, 168, 48, None, None, None)
                 + text(W / 2, 254, "Lid closed", size=17, fill=HEADLINE, weight=700, anchor="middle")
                 + text(W / 2, 276, "Display off. Mac still awake.", size=12.5, fill=SUB, anchor="middle")
-                + f'<rect x="104" y="296" width="152" height="28" rx="14" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.08)"/>'
+                + '<rect x="104" y="296" width="152" height="28" rx="14" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.08)"/>'
                 + spark(118, 304, "claude")
                 + text(137, 314.5, "claude", size=12.2, fill=TEXT)
                 + text(242, 314.5, "working", size=11.8, fill=CLAUDE, weight=600, anchor="end"),

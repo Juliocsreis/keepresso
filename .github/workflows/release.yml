@@ -22,6 +22,8 @@ jobs:
     environment: release # add a required reviewer to this environment in repo settings
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # A tag that disagrees with project.yml would publish a DMG named for
       # the old version under the new release, breaking the cask and appcast
       # URLs. Fail before anything is built or signed. The check script also

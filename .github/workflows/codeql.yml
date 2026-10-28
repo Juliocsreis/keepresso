@@ -1,0 +1,63 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so new CodeQL queries also run against unchanged code.
+    - cron: '23 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write  # upload results to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Swift needs a real build on macOS: SwiftPM for the core library,
+          # CLI, helper and MCP server, then xcodebuild for the app and widget.
+          - language: swift
+            runner: macos-26
+            build-mode: manual
+          - language: python
+            runner: ubuntu-latest
+            build-mode: none
+          - language: actions
+            runner: ubuntu-latest
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        if: matrix.language == 'swift'
+        with:
+          xcode-version: latest-stable
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+      - name: Build for analysis
+        if: matrix.language == 'swift'
+        run: |
+          swift build
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild build \
+            -project Keepresso.xcodeproj \
+            -scheme Keepresso \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}

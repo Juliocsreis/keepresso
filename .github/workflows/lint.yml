@@ -1,0 +1,75 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only token: lint only reads the tree (zizmor also reads public action
+# metadata through the API).
+permissions:
+  contents: read
+
+jobs:
+  workflows:
+    name: Workflow lint (actionlint, zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint (checksum-verified)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLO "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar xzf "${archive}" actionlint
+      - name: actionlint (syntax, expressions, shellcheck on run scripts)
+        run: ./actionlint -color
+      - name: Install Python lint tools (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet --require-hashes -r tools/ci/requirements.txt
+      - name: zizmor (workflow security)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: '"$RUNNER_TEMP/lint/bin/zizmor" --format github .github/workflows'
+
+  python:
+    name: Python lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install ruff (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet --require-hashes -r tools/ci/requirements.txt
+      - name: ruff check (rules in ruff.toml)
+        run: '"$RUNNER_TEMP/lint/bin/ruff" check --output-format github .'
+
+  swift-format:
+    name: Swift lint (changed lines)
+    # Compares against the pull request's base; on main there's nothing to
+    # compare, and main only changes through pull requests.
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: latest-stable
+      - name: swift format lint on the lines this pull request changes
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/lint-swift-changes.py
