@@ -42,6 +42,14 @@ jobs:
         if: matrix.language == 'swift'
         with:
           xcode-version: latest-stable
+      # Before CodeQL's init: its build tracer makes Homebrew think it runs
+      # under Rosetta and refuse to install, and project generation isn't
+      # code to analyze anyway.
+      - name: Generate the Xcode project
+        if: matrix.language == 'swift'
+        run: |
+          brew install xcodegen
+          xcodegen generate
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: ${{ matrix.language }}
@@ -51,8 +59,6 @@ jobs:
         if: matrix.language == 'swift'
         run: |
           swift build
-          brew install xcodegen
-          xcodegen generate
           xcodebuild build \
             -project Keepresso.xcodeproj \
             -scheme Keepresso \
