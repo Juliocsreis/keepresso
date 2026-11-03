@@ -104,7 +104,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
     /// menu-bar icon. On by default: the menu-bar icon alone is easy to lose
     /// (the notch hides icons that don't fit). Off makes Keepresso a
     /// menu-bar-only agent again.
-    public var showInDock: Bool
+    public var showInDock: Bool = true
     /// Saved trigger-rule bundles a user can apply in one action. Seeded with
     /// ``Preset/builtIns`` on first launch; a user may add or remove any of them.
     public var presets: [Preset]
@@ -170,7 +170,6 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         closedLidDisplayPolicy: ClosedLidDisplayPolicy = .displayOff,
         hotKey: HotKeyShortcut? = nil,
         startOnLaunch: Bool = false,
-        showInDock: Bool = true,
         presets: [Preset] = Preset.builtIns,
         seededPresetIDs: [String] = Preset.builtIns.map(\.id),
         hasOnboarded: Bool = false,
@@ -215,7 +214,6 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         self.closedLidDisplayPolicy = closedLidDisplayPolicy
         self.hotKey = Self.sanitizedHotKey(hotKey)
         self.startOnLaunch = startOnLaunch
-        self.showInDock = showInDock
         self.presets = presets
         self.seededPresetIDs = seededPresetIDs
         self.hasOnboarded = hasOnboarded
@@ -322,8 +320,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         // an older release must continue to render the established layout.
         // Invalid customization metadata falls back locally, so it cannot
         // discard the user's unrelated settings, rules, or presets.
-        menuCustomizationEnabled = (try? c.decodeIfPresent(
-            Bool.self, forKey: .menuCustomizationEnabled)) ?? false
+        menuCustomizationEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .menuCustomizationEnabled)) ?? false
         menuLayout = try? c.decodeIfPresent(MenuLayout.self, forKey: .menuLayout)
         glassClarity = min(max(try c.decodeIfPresent(Int.self, forKey: .glassClarity) ?? 50, 0), 100)
         awdlAutoWithGaming = try c.decodeIfPresent(Bool.self, forKey: .awdlAutoWithGaming) ?? false
