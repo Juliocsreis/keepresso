@@ -1937,6 +1937,7 @@ final class AppModel {
         session.stop()
         revokeLeases()
         settings = newSettings
+        applyDockPolicy()
         hotspot.config = newSettings.hotspotFallback
         session.options = newSettings.options
         session.reminderAfter = newSettings.reminderAfter

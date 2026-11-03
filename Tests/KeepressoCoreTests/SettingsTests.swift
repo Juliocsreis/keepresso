@@ -505,3 +505,10 @@ func customizationUpgradePreservesAComplete125SettingsBlob(expanded: Bool) throw
     let decoded = try JSONDecoder().decode(KeepressoSettings.self, from: JSONEncoder().encode(off))
     #expect(!decoded.showInDock)
 }
+
+@Test func aBadShowInDockValueKeepsTheOtherSettings() throws {
+    let blob = Data(#"{"showInDock":"false","startOnLaunch":true}"#.utf8)
+    let decoded = try JSONDecoder().decode(KeepressoSettings.self, from: blob)
+    #expect(decoded.showInDock)
+    #expect(decoded.startOnLaunch)
+}

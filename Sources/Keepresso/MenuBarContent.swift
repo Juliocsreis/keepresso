@@ -68,6 +68,9 @@ struct MenuBarContent: View {
     @State private var advancedDurationItem: MenuItem?
     @State private var advancedUntilItem: MenuItem?
     @State private var advancedContentHeight: CGFloat?
+    /// The standard layout's height in the main window, measured so the
+    /// window can fit it exactly and scroll once it outgrows the screen.
+    @State private var windowContentHeight: CGFloat?
     @State private var previewTick = 0
     /// Held in state so each body pass reuses one timer. A publisher built in
     /// `body` is replaced on every re-render, which restarts its countdown.
@@ -166,6 +169,8 @@ struct MenuBarContent: View {
         Group {
             if let layout = advancedMenuLayout {
                 advancedPanel(layout)
+            } else if host == .window {
+                scrollingInWindow(originalPanel)
             } else {
                 originalPanel
             }
@@ -258,6 +263,27 @@ struct MenuBarContent: View {
     private func visibleItems(_ groups: [MenuLayoutGroup], layout: MenuLayout) -> Set<MenuItem> {
         let collapsed = preview != nil ? (previewCollapsedSections ?? layout.collapsedSections) : layout.collapsedSections
         return Set(groups.filter { !collapsed.contains($0.section) }.flatMap(\.items))
+    }
+
+    /// The standard layout has no height limit of its own (the trigger summary
+    /// lists every rule). The dropdown is clamped by the system; a window is
+    /// not, so cap it to the screen and scroll, like ``advancedPanel(_:)``.
+    private func scrollingInWindow(_ content: some View) -> some View {
+        let maxHeight = max(250, (NSScreen.main?.visibleFrame.height ?? 800) - 100)
+        return ScrollView {
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { geometry in
+                    Color.clear.preference(key: MenuContentHeight.self, value: geometry.size.height)
+                })
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: min(windowContentHeight ?? 480, maxHeight))
+        .onPreferenceChange(MenuContentHeight.self) { height in
+            if height > 0 && abs(height - (windowContentHeight ?? 0)) > 0.5 {
+                windowContentHeight = height
+            }
+        }
     }
 
     private func advancedPanel(_ layout: MenuLayout) -> some View {

@@ -336,7 +336,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         closedLidDisplayPolicy = policyRaw.flatMap(ClosedLidDisplayPolicy.init(rawValue:)) ?? .displayOff
         hotKey = Self.sanitizedHotKey(try c.decodeIfPresent(HotKeyShortcut.self, forKey: .hotKey))
         startOnLaunch = try c.decodeIfPresent(Bool.self, forKey: .startOnLaunch) ?? false
-        showInDock = try c.decodeIfPresent(Bool.self, forKey: .showInDock) ?? true
+        showInDock = (try? c.decodeIfPresent(Bool.self, forKey: .showInDock)) ?? true
         presets = try c.decodeIfPresent([Preset].self, forKey: .presets) ?? Preset.builtIns
         // Settings saved before seeding was tracked (1.2.x and earlier) had
         // exactly the original three built-ins seeded; assuming that set means
