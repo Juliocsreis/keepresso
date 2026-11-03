@@ -387,6 +387,14 @@ private struct GeneralTab: View {
                 sectionFooter("Starts a session as soon as Keepresso launches.")
             }
             Section {
+                Toggle("Show in the Dock", isOn: Binding(
+                    get: { model.showInDock },
+                    set: { model.showInDock = $0 }
+                ))
+            } footer: {
+                sectionFooter("Adds a Dock icon and a main window with the same controls as the menu. Turn it off to keep Keepresso in the menu bar only.")
+            }
+            Section {
                 LabeledContent("Toggle shortcut") {
                     ShortcutRecorder(shortcut: Binding(
                         get: { model.hotKey },

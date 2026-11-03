@@ -925,3 +925,5 @@
 "No internet with the lid closed, letting the Mac sleep" = "合盖时没有网络，正在让 Mac 睡眠";
 "Let the Mac sleep when offline with the lid closed" = "合盖时离线则让 Mac 睡眠";
 "With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "合盖且合盖模式开启时，Keepresso 每 20 秒检查一次网络。如果在这段时间内一直无法连接，会话会暂停，Mac 可以睡眠。如果 Mac 完全没有网络，会先尝试连接备用热点（如已设置）。打开盖子即可恢复会话。";
+"Show in the Dock" = "在程序坞中显示";
+"Adds a Dock icon and a main window with the same controls as the menu. Turn it off to keep Keepresso in the menu bar only." = "添加程序坞图标和一个主窗口，其中的控制项与菜单相同。关闭后，Keepresso 只显示在菜单栏中。";

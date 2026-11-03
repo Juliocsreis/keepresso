@@ -76,6 +76,7 @@ from catalog_v125_battery_resume import CORE as V125_BATTERY_RESUME_CORE
 from catalog_menu_customization import APP as MENU_CUSTOMIZATION_APP
 from catalog_connectivity import APP as CONNECTIVITY_APP, CORE as CONNECTIVITY_CORE
 from catalog_offline_pause import APP as OFFLINE_PAUSE_APP, CORE as OFFLINE_PAUSE_CORE
+from catalog_dock_window import APP as DOCK_WINDOW_APP
 
 
 def merge_overlay(catalog: dict, lang: str, table: dict, name: str):
@@ -116,6 +117,7 @@ def merge_extra_langs():
     CORE.update(CONNECTIVITY_CORE)
     APP.update(OFFLINE_PAUSE_APP)
     CORE.update(OFFLINE_PAUSE_CORE)
+    APP.update(DOCK_WINDOW_APP)
 
 
 if __name__ == "__main__":

@@ -925,3 +925,5 @@
 "No internet with the lid closed, letting the Mac sleep" = "Sem internet com a tampa fechada, deixando o Mac repousar";
 "Let the Mac sleep when offline with the lid closed" = "Deixar o Mac repousar sem internet com a tampa fechada";
 "With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Com a tampa fechada e o modo com tela fechada ativo, o Keepresso verifica a internet a cada 20 segundos. Se ela continuar inacessível por esse tempo, a sessão pausa e o Mac pode repousar. Quando o Mac não tem nenhuma rede, o hotspot de reserva (se configurado) é tentado primeiro. Abrir a tampa retoma a sessão.";
+"Show in the Dock" = "Mostrar no Dock";
+"Adds a Dock icon and a main window with the same controls as the menu. Turn it off to keep Keepresso in the menu bar only." = "Adiciona um ícone no Dock e uma janela principal com os mesmos controles do menu. Desative para manter o Keepresso apenas na barra de menus.";
