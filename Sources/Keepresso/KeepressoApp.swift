@@ -1,8 +1,11 @@
 import SwiftUI
 import KeepressoCore
 
-/// Keepresso is a menu-bar agent (`LSUIElement`): no Dock icon, no main window.
-/// The entire UI lives in a `MenuBarExtra`.
+/// Keepresso lives in a `MenuBarExtra` and, by default, also as a regular app:
+/// a Dock icon and a main window holding the same controls (see
+/// ``AppModel/showInDock``). The bundle ships as an agent (`LSUIElement`) and
+/// the regular policy is applied at launch, so menu-bar-only users never see
+/// a Dock icon flash.
 @main
 struct KeepressoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -14,6 +17,16 @@ struct KeepressoApp: App {
             MenuBarLabelView(model: appDelegate.model, bridge: appDelegate.statusItemBridge)
         }
         .menuBarExtraStyle(.window)
+
+        // The main window: the dropdown's controls in a regular window, for
+        // the Dock-icon mode and for whenever the menu-bar icon is hidden.
+        Window("Keepresso", id: Self.mainWindowID) {
+            MenuBarContent(model: appDelegate.model, updater: appDelegate.updater,
+                           bridge: appDelegate.statusItemBridge, host: .window)
+        }
+        .windowResizability(.contentSize)
+        .handlesExternalEvents(matching: [])
+        .commands { AppMenuCommands() }
 
         // Every window opts out of external events (`handlesExternalEvents`
         // with an empty set): `keepresso://` URLs are fully handled by the
@@ -29,42 +42,49 @@ struct KeepressoApp: App {
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("Gaming & Streaming", id: Self.streamingWindowID) {
             StreamingSetupView(model: appDelegate.model)
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("Keyboard Cleaner", id: Self.keyboardCleanerWindowID) {
             KeyboardCleanerView(model: appDelegate.model)
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("Public Wi-Fi", id: Self.wifiAssistantWindowID) {
             WifiAssistantView(model: appDelegate.model)
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("Preferences", id: Self.preferencesWindowID) {
             PreferencesView(model: appDelegate.model)
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("Customize Menu", id: Self.menuCustomizationWindowID) {
             MenuCustomizationView(model: appDelegate.model)
         }
         .defaultSize(width: 940, height: 800)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         Window("About Keepresso", id: Self.aboutWindowID) {
             AboutView()
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         // Opened automatically (from `MenuBarLabelView`) when the helper
         // daemon's self-heal needs the user: approve once more, or reinstall.
@@ -73,6 +93,7 @@ struct KeepressoApp: App {
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
 
         // Shown once on first launch (see `MenuBarLabelView`) and reopenable from
         // the menu via `openWindow(id: "welcome")`.
@@ -81,9 +102,11 @@ struct KeepressoApp: App {
         }
         .windowResizability(.contentSize)
         .handlesExternalEvents(matching: [])
+        .commandsRemoved()
     }
 
     /// Scene ids shared with the menu's window-opening buttons.
+    static let mainWindowID = "main"
     static let setupWindowID = "setup"
     static let streamingWindowID = "streaming"
     static let keyboardCleanerWindowID = "keyboard-cleaner"
@@ -116,7 +139,10 @@ private struct MenuBarLabelView: View {
                 // only exists inside SwiftUI; this is the app's one always
                 // alive view, so it lends its environment to the bridge.
                 bridge.openWindow = { openWindow(id: $0) }
-                guard !model.hasOnboarded else { return }
+                guard !model.hasOnboarded else {
+                    openMainWindowAtLaunchIfNeeded()
+                    return
+                }
                 // First launch from a DMG: this instance is about to copy
                 // itself to /Applications and quit. Flashing the welcome here
                 // would persist hasOnboarded into the shared defaults and the
@@ -134,6 +160,53 @@ private struct MenuBarLabelView: View {
                 NSApp.activate(ignoringOtherApps: true)
                 openWindow(id: KeepressoApp.helperWindowID)
             }
+    }
+
+    /// In Dock mode a launch shows the main window, like any regular app,
+    /// except at login, where a window popping up on every boot would be a
+    /// nuisance (the Dock icon is there to open it), and on the relocation
+    /// hand-off, where this copy is about to quit.
+    private func openMainWindowAtLaunchIfNeeded() {
+        guard model.showInDock, !LaunchContext.launchedAsLoginItem, !AppRelocator.isRelocating else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: KeepressoApp.mainWindowID)
+    }
+}
+
+/// Menu-bar commands for the regular-app mode: Preferences under the app menu
+/// with the standard Command-comma.
+private struct AppMenuCommands: Commands {
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            PreferencesCommand()
+        }
+    }
+}
+
+private struct PreferencesCommand: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Preferences…") {
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: KeepressoApp.preferencesWindowID)
+        }
+        .keyboardShortcut(",", modifiers: .command)
+    }
+}
+
+/// How this process was launched, read once from the launch Apple event.
+enum LaunchContext {
+    /// Best effort: loginwindow tags a login-item launch on the open event.
+    /// A miss only means the main window also shows at login.
+    private(set) static var launchedAsLoginItem = false
+
+    static func record() {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventID == kAEOpenApplication,
+              let prop = event.paramDescriptor(forKeyword: keyAEPropData)
+        else { return }
+        launchedAsLoginItem = prop.enumCodeValue == keyAELaunchedAsLogInItem
     }
 }
 
@@ -203,7 +276,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// with its own assertions. Detect that here, before the ticker or any
     /// assertion starts, and hand back to the original instead.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // The launch Apple event is only current during this callback.
+        LaunchContext.record()
         yieldIfDuplicateInstance()
+        if !yieldingToPeer { model.applyDockPolicy() }
     }
 
     private func yieldIfDuplicateInstance() {
@@ -393,6 +469,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // don't leave the widgets lying.
         guard !AppRelocator.isRelocating else { return }
         model.writeWidgetStateStopped()
+    }
+
+    /// Launching Keepresso again while it runs (Spotlight, Finder, Launchpad,
+    /// `open -a`) lands here. A background agent has no window to bring
+    /// forward, so without this the relaunch looks like it did nothing.
+    /// Returning false also keeps SwiftUI from presenting the first declared
+    /// window scene (the Setup checklist) as its default reopen answer.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !yieldingToPeer else { return false }
+        if model.showInDock {
+            // A Dock click or relaunch of a regular app: show its window.
+            statusItemBridge.openMainWindow()
+        } else {
+            statusItemBridge.revealPanel()
+        }
+        return false
     }
 
     /// Handles `keepresso://` URLs (registered via `CFBundleURLTypes` in

@@ -5,6 +5,13 @@ import Combine
 
 /// Preview overrides presentation only. It cannot operate controls, register a
 /// status panel, refresh hardware, or change the real panel's visibility.
+/// Where the controls are shown: the menu-bar dropdown or the main window
+/// (the Dock-icon mode). The window skips the panel-only plumbing.
+enum MenuHost {
+    case panel
+    case window
+}
+
 struct MenuPreviewConfiguration {
     var layout: MenuLayout?
     var expanded: Bool
@@ -25,6 +32,7 @@ struct MenuBarContent: View {
     /// the panel before showing the context menu.
     let bridge: StatusItemBridge
     var preview: MenuPreviewConfiguration? = nil
+    var host: MenuHost = .panel
 
     /// Opens the window scenes declared in ``KeepressoApp``.
     @Environment(\.openWindow) private var openWindow
@@ -60,6 +68,9 @@ struct MenuBarContent: View {
     @State private var advancedDurationItem: MenuItem?
     @State private var advancedUntilItem: MenuItem?
     @State private var advancedContentHeight: CGFloat?
+    /// The standard layout's height in the main window, measured so the
+    /// window can fit it exactly and scroll once it outgrows the screen.
+    @State private var windowContentHeight: CGFloat?
     @State private var previewTick = 0
     /// Held in state so each body pass reuses one timer. A publisher built in
     /// `body` is replaced on every re-render, which restarts its countdown.
@@ -132,20 +143,20 @@ struct MenuBarContent: View {
         // TimelineViews ticking). The visibility probe stays mounted outside
         // the `if` so reopen can remount the body.
         Group {
-            if panelVisible {
+            // The main window always keeps its body: closing a window scene
+            // already releases its content, and a size-to-fit window would
+            // shrink to the placeholder below while ordered out.
+            if panelVisible || host == .window {
                 panelBody
             } else {
                 Color.clear
                     .frame(width: CGFloat(advancedMenuLayout?.panelWidth ?? MenuLayout.standardWidth) * type.scale, height: 1)
             }
         }
-        .keepsPanelKey()
-        // Hands the panel window to the bridge, so a right-click on the icon
-        // closes this panel before its context menu opens.
-        .background(PanelWindowRegistrar { bridge.panelWindow = $0 })
+        .modifier(PanelOnlyPlumbing(host: host, bridge: bridge))
         .background(WindowVisibilityReader(isVisible: $panelVisible))
         .onChange(of: panelVisible) { _, visible in
-            model.menuPanelVisible = visible
+            setHostVisible(visible)
             guard visible else { return }
             model.pulseMenuPanelIfVisible()
             model.refreshClosedDisplay()
@@ -158,6 +169,8 @@ struct MenuBarContent: View {
         Group {
             if let layout = advancedMenuLayout {
                 advancedPanel(layout)
+            } else if host == .window {
+                scrollingInWindow(originalPanel)
             } else {
                 originalPanel
             }
@@ -174,14 +187,23 @@ struct MenuBarContent: View {
         .animation(.snappy(duration: 0.25), value: model.helperAttention)
         .animation(.snappy(duration: 0.25), value: model.menuPanelExpanded)
         .animation(.snappy(duration: 0.25), value: model.menuCustomizationEnabled)
-        .glassPanelBackground()
+        .modifier(HostBackground(host: host))
         .tint(.keepressoBrew)
         .font(type.body)
         .onAppear {
             guard preview == nil else { return }
-            model.menuPanelVisible = true
+            setHostVisible(true)
             model.pulseMenuPanelIfVisible()
             model.refreshClosedDisplay()
+        }
+    }
+
+    /// Report this host's visibility, so the ticker pulses live values only
+    /// while some copy of the controls is on screen.
+    private func setHostVisible(_ visible: Bool) {
+        switch host {
+        case .panel: model.menuPanelVisible = visible
+        case .window: model.mainWindowVisible = visible
         }
     }
 
@@ -241,6 +263,27 @@ struct MenuBarContent: View {
     private func visibleItems(_ groups: [MenuLayoutGroup], layout: MenuLayout) -> Set<MenuItem> {
         let collapsed = preview != nil ? (previewCollapsedSections ?? layout.collapsedSections) : layout.collapsedSections
         return Set(groups.filter { !collapsed.contains($0.section) }.flatMap(\.items))
+    }
+
+    /// The standard layout has no height limit of its own (the trigger summary
+    /// lists every rule). The dropdown is clamped by the system; a window is
+    /// not, so cap it to the screen and scroll, like ``advancedPanel(_:)``.
+    private func scrollingInWindow(_ content: some View) -> some View {
+        let maxHeight = max(250, (NSScreen.main?.visibleFrame.height ?? 800) - 100)
+        return ScrollView {
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { geometry in
+                    Color.clear.preference(key: MenuContentHeight.self, value: geometry.size.height)
+                })
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: min(windowContentHeight ?? 480, maxHeight))
+        .onPreferenceChange(MenuContentHeight.self) { height in
+            if height > 0 && abs(height - (windowContentHeight ?? 0)) > 0.5 {
+                windowContentHeight = height
+            }
+        }
     }
 
     private func advancedPanel(_ layout: MenuLayout) -> some View {
@@ -1483,5 +1526,38 @@ private extension View {
     }
     func menuShortcut(_ key: KeyEquivalent, enabled: Bool) -> some View {
         keyboardShortcut(enabled ? KeyboardShortcut(key, modifiers: .command) : nil)
+    }
+}
+
+/// The dropdown's key-status repair and its window handoff to the bridge (so
+/// a right-click on the icon closes the panel first). Neither applies to the
+/// main window, which AppKit keys normally and which must never be mistaken
+/// for the panel.
+private struct PanelOnlyPlumbing: ViewModifier {
+    let host: MenuHost
+    let bridge: StatusItemBridge
+
+    func body(content: Content) -> some View {
+        switch host {
+        case .panel:
+            content
+                .keepsPanelKey()
+                .background(PanelWindowRegistrar { bridge.panelWindow = $0 })
+        case .window:
+            content
+        }
+    }
+}
+
+/// The panel sits on the system's frosted chrome; a window needs the stronger
+/// window glass to stay readable over the wallpaper.
+private struct HostBackground: ViewModifier {
+    let host: MenuHost
+
+    func body(content: Content) -> some View {
+        switch host {
+        case .panel: content.glassPanelBackground()
+        case .window: content.glassWindowBackground()
+        }
     }
 }

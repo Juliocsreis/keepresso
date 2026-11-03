@@ -100,6 +100,11 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
     /// Start a manual keep-awake session as soon as the app launches (when
     /// triggers aren't gating activation). Off by default.
     public var startOnLaunch: Bool
+    /// Show a Dock icon and a main window, like a regular app, alongside the
+    /// menu-bar icon. On by default: the menu-bar icon alone is easy to lose
+    /// (the notch hides icons that don't fit). Off makes Keepresso a
+    /// menu-bar-only agent again.
+    public var showInDock: Bool = true
     /// Saved trigger-rule bundles a user can apply in one action. Seeded with
     /// ``Preset/builtIns`` on first launch; a user may add or remove any of them.
     public var presets: [Preset]
@@ -315,8 +320,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         // an older release must continue to render the established layout.
         // Invalid customization metadata falls back locally, so it cannot
         // discard the user's unrelated settings, rules, or presets.
-        menuCustomizationEnabled = (try? c.decodeIfPresent(
-            Bool.self, forKey: .menuCustomizationEnabled)) ?? false
+        menuCustomizationEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .menuCustomizationEnabled)) ?? false
         menuLayout = try? c.decodeIfPresent(MenuLayout.self, forKey: .menuLayout)
         glassClarity = min(max(try c.decodeIfPresent(Int.self, forKey: .glassClarity) ?? 50, 0), 100)
         awdlAutoWithGaming = try c.decodeIfPresent(Bool.self, forKey: .awdlAutoWithGaming) ?? false
@@ -332,6 +336,7 @@ public struct KeepressoSettings: Codable, Equatable, Sendable {
         closedLidDisplayPolicy = policyRaw.flatMap(ClosedLidDisplayPolicy.init(rawValue:)) ?? .displayOff
         hotKey = Self.sanitizedHotKey(try c.decodeIfPresent(HotKeyShortcut.self, forKey: .hotKey))
         startOnLaunch = try c.decodeIfPresent(Bool.self, forKey: .startOnLaunch) ?? false
+        showInDock = (try? c.decodeIfPresent(Bool.self, forKey: .showInDock)) ?? true
         presets = try c.decodeIfPresent([Preset].self, forKey: .presets) ?? Preset.builtIns
         // Settings saved before seeding was tracked (1.2.x and earlier) had
         // exactly the original three built-ins seeded; assuming that set means

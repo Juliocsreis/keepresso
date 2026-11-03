@@ -494,3 +494,21 @@ func customizationUpgradePreservesAComplete125SettingsBlob(expanded: Bool) throw
         SettingsTransfer.exportData(settings, appVersion: "1.28.0"))
     #expect(imported.options.activityOnlyWhileBrewing == false)
 }
+
+@Test func showInDockDefaultsOnAndRoundTrips() throws {
+    #expect(KeepressoSettings().showInDock)
+    // Settings saved before the option existed come back with the Dock icon on.
+    let legacy = try JSONDecoder().decode(KeepressoSettings.self, from: Data(#"{"startOnLaunch":true}"#.utf8))
+    #expect(legacy.showInDock)
+    var off = KeepressoSettings()
+    off.showInDock = false
+    let decoded = try JSONDecoder().decode(KeepressoSettings.self, from: JSONEncoder().encode(off))
+    #expect(!decoded.showInDock)
+}
+
+@Test func aBadShowInDockValueKeepsTheOtherSettings() throws {
+    let blob = Data(#"{"showInDock":"false","startOnLaunch":true}"#.utf8)
+    let decoded = try JSONDecoder().decode(KeepressoSettings.self, from: blob)
+    #expect(decoded.showInDock)
+    #expect(decoded.startOnLaunch)
+}

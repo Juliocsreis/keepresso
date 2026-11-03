@@ -393,11 +393,14 @@ final class AppModel {
     /// Whether the menu bar dropdown is on screen. The closed panel stays
     /// alive on current macOS; the ticker skips snapshot pulses while false.
     @ObservationIgnored var menuPanelVisible = false
+    /// Whether the main window (the same controls, hosted in a regular
+    /// window) is on screen. Pulsed like the panel while true.
+    @ObservationIgnored var mainWindowVisible = false
 
     /// Once-a-second pulse for the open menu panel. Cheap: elapsed is a date
     /// delta, and the external-assertion line rides the TTL cache above.
     func pulseMenuPanelIfVisible() {
-        guard menuPanelVisible else { return }
+        guard menuPanelVisible || mainWindowVisible else { return }
         menuPanel.pulse(elapsed: session.elapsed, external: topExternalAssertion())
     }
 
@@ -1734,6 +1737,25 @@ final class AppModel {
     /// Start a manual session at launch if the user asked for it. Skipped when
     /// triggers own activation (the gate would fight it) or a session is already
     /// running. Called once from the app delegate after relocation.
+    /// Dock icon and main window on (a regular app) or off (menu-bar agent).
+    var showInDock: Bool {
+        get { settings.showInDock }
+        set {
+            settings.showInDock = newValue
+            persist()
+            applyDockPolicy()
+        }
+    }
+
+    /// Switch between a regular app and a menu-bar agent. The bundle ships as
+    /// an agent (`LSUIElement`) so a menu-bar-only user never sees a Dock
+    /// icon flash at launch; the regular policy is applied at runtime.
+    func applyDockPolicy() {
+        let policy: NSApplication.ActivationPolicy = settings.showInDock ? .regular : .accessory
+        guard NSApp.activationPolicy() != policy else { return }
+        NSApp.setActivationPolicy(policy)
+    }
+
     func startOnLaunchIfNeeded() {
         guard settings.startOnLaunch, !settings.triggersEnabled, !session.isActive else { return }
         session.start(mode: settings.defaultMode)
@@ -1915,6 +1937,7 @@ final class AppModel {
         session.stop()
         revokeLeases()
         settings = newSettings
+        applyDockPolicy()
         hotspot.config = newSettings.hotspotFallback
         session.options = newSettings.options
         session.reminderAfter = newSettings.reminderAfter

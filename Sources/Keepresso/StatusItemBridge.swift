@@ -81,6 +81,51 @@ final class StatusItemBridge: NSObject {
         return nil
     }
 
+    /// Bring up the main window (the dropdown's controls in a regular window).
+    func openMainWindow() {
+        if let panel = panelWindow, panel.isVisible { panel.close() }
+        open(KeepressoApp.mainWindowID)
+    }
+
+    /// Answer a relaunch of the running menu-bar-only app: open the menu panel
+    /// as if the icon had been clicked. When the icon is not on screen
+    /// (crowded out by the notch, or the status item can't be found), the
+    /// panel would have nowhere sensible to anchor, so open the main window
+    /// instead: the user still gets the controls.
+    func revealPanel() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let panel = panelWindow, panel.isVisible {
+            panel.makeKeyAndOrderFront(nil)
+            return
+        }
+        guard let item = resolveStatusItem(), let button = item.button,
+              let window = button.window, Self.isOnScreen(window)
+        else {
+            openWindow?(KeepressoApp.mainWindowID)
+            return
+        }
+        button.performClick(nil)
+    }
+
+    /// Whether the status item's window is actually visible in the menu bar.
+    /// macOS hides items that don't fit beside the notch without telling the
+    /// app, so check occlusion, that the window sits on a screen, and that it
+    /// doesn't fall inside the notch gap.
+    private static func isOnScreen(_ window: NSWindow) -> Bool {
+        guard window.isVisible, window.occlusionState.contains(.visible),
+              let screen = window.screen
+        else { return false }
+        let frame = window.frame
+        guard screen.frame.intersects(frame) else { return false }
+        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+            let notch = NSRect(x: left.maxX, y: min(left.minY, right.minY),
+                               width: max(0, right.minX - left.maxX),
+                               height: max(left.height, right.height))
+            if notch.width > 0, notch.intersects(frame) { return false }
+        }
+        return true
+    }
+
     /// Find our status item behind `MenuBarExtra`: the app's only
     /// `NSStatusBarWindow`, whose `statusItem` property AppKit has kept stable
     /// across releases. Both names are private, hence the guards; a miss means

@@ -925,3 +925,5 @@
 "No internet with the lid closed, letting the Mac sleep" = "Kapak kapalıyken internet yok, Mac'in uyumasına izin veriliyor";
 "Let the Mac sleep when offline with the lid closed" = "Kapak kapalıyken çevrimdışı olunca Mac'in uyumasına izin ver";
 "With the lid closed and closed-display mode active, Keepresso checks the internet every 20 seconds. If it stays unreachable for this long, the session pauses and the Mac can sleep. When the Mac has no network at all, hotspot fallback (if set up) gets a try first. Opening the lid resumes the session." = "Kapak kapalı ve kapalı ekran modu açıkken Keepresso interneti 20 saniyede bir kontrol eder. Bu süre boyunca erişilemezse oturum duraklar ve Mac uyuyabilir. Mac'in hiç ağı yoksa, ayarlanmışsa önce yedek erişim noktası denenir. Kapağı açmak oturumu sürdürür.";
+"Show in the Dock" = "Dock'ta göster";
+"Adds a Dock icon and a main window with the same controls as the menu. Turn it off to keep Keepresso in the menu bar only." = "Dock'a bir simge ve menüyle aynı denetimlere sahip bir ana pencere ekler. Keepresso'yu yalnızca menü çubuğunda tutmak için kapat.";
